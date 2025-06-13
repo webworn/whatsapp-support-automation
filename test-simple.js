@@ -4,6 +4,19 @@ const app = express();
 
 app.use(express.json());
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: '🤖 WhatsApp Support Automation API',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      testLLM: 'POST /test-llm'
+    },
+    docs: 'https://github.com/webworn/whatsapp-support-automation'
+  });
+});
+
 // Test endpoint
 app.get('/health', (req, res) => {
   res.json({
