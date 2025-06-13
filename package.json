@@ -6,7 +6,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build": "nest build",
+    "build": "echo 'No build step needed for simple server'",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node test-simple.js",
     "start:dev": "nest start --watch",
