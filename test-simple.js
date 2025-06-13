@@ -4,12 +4,14 @@ const { buildSystemPrompt, detectMessageType, getWelcomeMessage } = require('./p
 const UserProfiler = require('./user-profiling');
 const TokenOptimizer = require('./token-optimizer');
 const MSG91Integration = require('./msg91-integration');
+const WhatsAppBusinessWebhook = require('./whatsapp-business-webhook');
 const app = express();
 
 // Initialize systems
 const userProfiler = new UserProfiler();
 const tokenOptimizer = new TokenOptimizer();
 const msg91 = new MSG91Integration();
+const whatsappBusiness = new WhatsAppBusinessWebhook();
 
 // Middleware
 app.use(express.json());
@@ -50,6 +52,8 @@ app.get('/', (req, res) => {
       tokenAnalytics: 'GET /admin/token-analytics',
       knowledgeBase: 'GET /admin/knowledge-base',
       testMSG91: 'POST /admin/test-msg91-connection',
+      testWhatsAppBusiness: 'POST /admin/test-whatsapp-business',
+      simulateWebhook: 'POST /admin/simulate-webhook',
       webhookLogs: 'GET /admin/webhook-logs'
     },
     aiCapabilities: {
@@ -61,10 +65,13 @@ app.get('/', (req, res) => {
       adaptiveResponses: 'Communication style matching and preference learning',
       tokenOptimization: 'Intelligent cost reduction while maintaining quality',
       costEfficiency: '40-70% token savings through smart optimization',
-      whatsappIntegration: 'Real WhatsApp Business API with MSG91',
+      whatsappIntegration: 'MSG91 + Meta WhatsApp Business API support',
       webhookSecurity: 'HMAC signature validation and rate limiting'
     },
-    whatsappStatus: msg91.getConfigurationStatus(),
+    whatsappProviders: {
+      msg91: msg91.getConfigurationStatus(),
+      whatsappBusiness: whatsappBusiness.getConfigurationStatus()
+    },
     docs: 'https://github.com/webworn/whatsapp-support-automation'
   });
 });
@@ -834,6 +841,240 @@ app.get('/admin/token-analytics', (req, res) => {
   });
 });
 
+// WhatsApp Business API Webhook Endpoints
+
+// Webhook verification endpoint (required by Meta)
+app.get('/webhook/whatsapp-business', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  
+  console.log('📋 Webhook verification request:', { mode, token: token ? 'provided' : 'missing' });
+  
+  const verificationResult = whatsappBusiness.verifyWebhook(mode, token, challenge);
+  
+  if (verificationResult) {
+    res.status(200).send(challenge);
+  } else {
+    res.status(403).send('Forbidden');
+  }
+});
+
+// WhatsApp Business webhook endpoint
+app.post('/webhook/whatsapp-business', async (req, res) => {
+  try {
+    const signature = req.headers['x-hub-signature-256'];
+    const rawBody = JSON.stringify(req.body);
+    
+    console.log('📥 WhatsApp Business webhook received:', JSON.stringify(req.body, null, 2));
+    
+    // Validate webhook signature
+    if (!whatsappBusiness.validateSignature(rawBody, signature)) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    
+    // Process webhook event
+    const messageData = whatsappBusiness.processWebhookEvent(req.body);
+    
+    if (!messageData) {
+      // Not a message event, just acknowledge
+      return res.status(200).json({ message: 'Event acknowledged' });
+    }
+    
+    // Handle message status updates
+    if (messageData.status) {
+      console.log(`📊 Message status update: ${messageData.messageId} -> ${messageData.status}`);
+      return res.status(200).json({ message: 'Status update processed' });
+    }
+    
+    // Handle incoming messages
+    if (messageData.text || messageData.buttonReply || messageData.listReply) {
+      const phoneNumber = messageData.from;
+      let messageText = messageData.text;
+      
+      // Handle interactive responses
+      if (messageData.buttonReply) {
+        messageText = messageData.buttonReply.title;
+      } else if (messageData.listReply) {
+        messageText = messageData.listReply.title;
+      }
+      
+      console.log(`📱 Processing WhatsApp Business message from ${phoneNumber}: "${messageText}"`);
+      
+      // Mark message as read
+      await whatsappBusiness.markMessageAsRead(messageData.messageId);
+      
+      // Process with AI
+      const aiResponse = await processIncomingMessage(phoneNumber, messageText);
+      
+      console.log(`🤖 AI Response: "${aiResponse}"`);
+      
+      // Send response via WhatsApp Business API
+      const deliveryResult = await whatsappBusiness.sendMessage(phoneNumber, aiResponse);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Message processed via WhatsApp Business API',
+        messageId: messageData.messageId,
+        response: aiResponse,
+        delivery: deliveryResult
+      });
+    }
+    
+    // Handle media messages
+    if (messageData.image || messageData.document || messageData.audio) {
+      const phoneNumber = messageData.from;
+      await whatsappBusiness.markMessageAsRead(messageData.messageId);
+      
+      const response = "Thank you for sharing that with me! 📎 I can see you've sent a file. Our team will review it and get back to you soon.";
+      const deliveryResult = await whatsappBusiness.sendMessage(phoneNumber, response);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Media message acknowledged',
+        messageType: messageData.type,
+        delivery: deliveryResult
+      });
+    }
+    
+    // Handle location messages
+    if (messageData.location) {
+      const phoneNumber = messageData.from;
+      await whatsappBusiness.markMessageAsRead(messageData.messageId);
+      
+      const response = `Thank you for sharing your location! 📍 I can see you're at ${messageData.location.name || 'the provided coordinates'}. How can I help you?`;
+      const deliveryResult = await whatsappBusiness.sendMessage(phoneNumber, response);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Location message processed',
+        delivery: deliveryResult
+      });
+    }
+    
+    res.status(200).json({ message: 'Webhook processed' });
+    
+  } catch (error) {
+    console.error('❌ WhatsApp Business webhook error:', error);
+    res.status(500).json({
+      error: 'Webhook processing failed',
+      message: error.message
+    });
+  }
+});
+
+// Test WhatsApp Business API integration
+app.post('/admin/test-whatsapp-business', async (req, res) => {
+  try {
+    const { phone, message = 'Hello! This is a test message from your WhatsApp Business API integration! 🤖' } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({
+        error: 'Phone number is required'
+      });
+    }
+    
+    const configStatus = whatsappBusiness.getConfigurationStatus();
+    
+    if (configStatus.isDemo) {
+      return res.json({
+        success: false,
+        message: 'WhatsApp Business API is in demo mode',
+        configuration: configStatus,
+        instructions: 'Add WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID to test real messaging'
+      });
+    }
+    
+    const result = await whatsappBusiness.sendMessage(phone, message);
+    
+    res.json({
+      success: true,
+      message: 'WhatsApp Business API test successful',
+      result,
+      configuration: configStatus
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'WhatsApp Business API test failed',
+      message: error.message
+    });
+  }
+});
+
+// Send interactive message with buttons
+app.post('/admin/send-interactive-message', async (req, res) => {
+  try {
+    const { phone, text, buttons } = req.body;
+    
+    if (!phone || !text || !buttons) {
+      return res.status(400).json({
+        error: 'Phone number, text, and buttons are required'
+      });
+    }
+    
+    const result = await whatsappBusiness.sendInteractiveMessage(phone, text, buttons);
+    
+    res.json({
+      success: true,
+      result
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Interactive message failed',
+      message: error.message
+    });
+  }
+});
+
+// Simulate webhook for testing
+app.post('/admin/simulate-webhook', async (req, res) => {
+  try {
+    const { phone, message, messageType = 'text' } = req.body;
+    
+    if (!phone || !message) {
+      return res.status(400).json({
+        error: 'Phone number and message are required'
+      });
+    }
+    
+    // Create test webhook payload
+    const testPayload = whatsappBusiness.createTestWebhookPayload(phone, message, messageType);
+    
+    console.log('🧪 Simulating WhatsApp Business webhook:', JSON.stringify(testPayload, null, 2));
+    
+    // Process the test webhook
+    const messageData = whatsappBusiness.processWebhookEvent(testPayload);
+    
+    // Extract message text
+    let messageText = messageData.text;
+    if (messageData.image) messageText = messageData.image.caption || 'Image message';
+    if (messageData.document) messageText = messageData.document.caption || 'Document message';
+    
+    // Process with AI
+    const aiResponse = await processIncomingMessage(phone, messageText);
+    
+    res.json({
+      success: true,
+      simulation: 'WhatsApp Business webhook simulated',
+      testPayload,
+      messageData,
+      aiResponse,
+      note: 'This simulates receiving a real WhatsApp Business webhook'
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Webhook simulation failed',
+      message: error.message
+    });
+  }
+});
+
 // MSG91 Integration Management Endpoints
 
 // Test MSG91 connection and configuration
@@ -1009,18 +1250,24 @@ app.listen(port, () => {
   console.log(`   GET  /admin/users - View user profiles`);
   console.log(`   GET  /admin/token-analytics - View cost savings`);
   console.log(`   GET  /admin/knowledge-base - View prompt system`);
-  console.log(`   POST /admin/test-msg91-connection - Test WhatsApp API`);
+  console.log(`   POST /admin/test-msg91-connection - Test MSG91 API`);
+  console.log(`   POST /admin/test-whatsapp-business - Test WhatsApp Business API`);
+  console.log(`   POST /admin/simulate-webhook - Simulate WhatsApp webhook`);
   console.log(`   GET  /admin/webhook-logs - View webhook status`);
   console.log(`📋 Environment check:`);
   console.log(`   OPENROUTER_API_KEY: ${process.env.OPENROUTER_API_KEY ? '✅ Set' : '❌ Missing'}`);
   
   const msg91Status = msg91.getConfigurationStatus();
+  const whatsappStatus = whatsappBusiness.getConfigurationStatus();
+  
   console.log(`   MSG91_AUTH_KEY: ${msg91Status.authKey ? '✅ Set' : '❌ Missing (demo mode)'}`);
-  console.log(`   MSG91_WEBHOOK_SECRET: ${msg91Status.webhookSecret ? '✅ Set' : '❌ Missing'}`);
-  console.log(`📱 WhatsApp Integration:`);
-  console.log(`   Status: ${msg91Status.isDemo ? '⚠️ Demo Mode' : '✅ Production Ready'}`);
-  console.log(`   Webhook URL: ${msg91Status.isDemo ? 'Configure in MSG91 dashboard' : 'Ready'}`);
-  console.log(`   Message delivery: ${msg91Status.isDemo ? 'Simulated' : 'Real WhatsApp'}`);
+  console.log(`   WHATSAPP_ACCESS_TOKEN: ${whatsappStatus.accessToken ? '✅ Set' : '❌ Missing (demo mode)'}`);
+  console.log(`📱 WhatsApp Integration Options:`);
+  console.log(`   MSG91 (Production): ${msg91Status.isDemo ? '⚠️ Demo Mode' : '✅ Ready'}`);
+  console.log(`   WhatsApp Business API: ${whatsappStatus.isDemo ? '⚠️ Demo Mode' : '✅ Ready'}`);
+  console.log(`   Webhook URLs:`);
+  console.log(`     MSG91: /webhook/whatsapp`);
+  console.log(`     Business API: /webhook/whatsapp-business`);
   console.log(`🧠 AI Features:`);
   console.log(`   ✅ Dynamic prompt selection`);
   console.log(`   ✅ Context-aware responses`);
