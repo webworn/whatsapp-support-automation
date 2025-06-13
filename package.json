@@ -35,6 +35,8 @@
     "@nestjs/terminus": "^10.0.1",
     "@nestjs/bull": "^10.0.1",
     "@nestjs/event-emitter": "^2.0.0",
+    "@nestjs/swagger": "^7.1.0",
+    "@nestjs/axios": "^3.0.0",
     "@prisma/client": "^5.1.0",
     "prisma": "^5.1.0",
     "redis": "^4.6.7",

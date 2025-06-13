@@ -8,12 +8,10 @@ import { TerminusModule } from '@nestjs/terminus';
 import { DatabaseModule } from './shared/database/database.module';
 import { RedisModule } from './shared/redis/redis.module';
 import { QueueModule } from './shared/queue/queue.module';
+import { SessionModule } from './shared/session/session.module';
 
-import { WebhookModule } from './modules/webhook/webhook.module';
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { LlmModule } from './modules/llm/llm.module';
-import { DeliveryModule } from './modules/delivery/delivery.module';
-import { FlowModule } from './modules/flow/flow.module';
 
 import { HealthController } from './shared/health/health.controller';
 import { AppController } from './app.controller';
@@ -85,13 +83,11 @@ import { AppService } from './app.service';
     DatabaseModule,
     RedisModule,
     QueueModule,
+    SessionModule,
 
     // Feature modules
-    WebhookModule,
     ConversationModule,
     LlmModule,
-    DeliveryModule,
-    FlowModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
