@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -16,7 +16,7 @@ model User {
   name        String?
   language    String   @default("en")
   isActive    Boolean  @default(true) @map("is_active")
-  metadata    Json?
+  metadata    String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -36,7 +36,7 @@ model Conversation {
   escalationReason String?   @map("escalation_reason")
   resolutionTime   Float?    @map("resolution_time")
   satisfactionScore Float?   @map("satisfaction_score")
-  metadata         Json?
+  metadata         String?
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   completedAt      DateTime? @map("completed_at")
@@ -61,7 +61,7 @@ model Message {
   llmModelUsed    String?   @map("llm_model_used")
   llmCost         Float     @default(0.0) @map("llm_cost")
   processingTime  Float?    @map("processing_time")
-  metadata        Json?
+  metadata        String?
   createdAt       DateTime  @default(now()) @map("created_at")
   deliveredAt     DateTime? @map("delivered_at")
 
@@ -73,7 +73,7 @@ model Message {
 model Session {
   id           String   @id @default(uuid())
   phoneNumber  String   @map("phone_number")
-  sessionData  Json     @map("session_data")
+  sessionData  String   @map("session_data")
   lastActivity DateTime @default(now()) @map("last_activity")
   expiresAt    DateTime @map("expires_at")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -104,7 +104,7 @@ model LlmUsage {
 model WebhookLog {
   id        Int      @id @default(autoincrement())
   source    String   // msg91, manual, etc.
-  payload   Json
+  payload   String
   signature String?
   isValid   Boolean  @map("is_valid")
   processed Boolean  @default(false)
