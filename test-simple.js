@@ -1,5 +1,6 @@
 // WhatsApp Support Automation - Production Server
 const express = require('express');
+const { buildSystemPrompt, detectMessageType, getWelcomeMessage } = require('./prompts');
 const app = express();
 
 // Middleware
@@ -15,14 +16,31 @@ app.get('/', (req, res) => {
   res.json({
     message: '🤖 WhatsApp Support Automation API',
     status: 'running',
-    version: '2.0.0',
-    features: ['AI Integration', 'WhatsApp Business API', 'Conversation Management'],
+    version: '3.0.0',
+    company: 'TechCorp Solutions',
+    features: [
+      'AI Integration with Dynamic Prompts',
+      'WhatsApp Business API',
+      'Conversation Management',
+      'Context-Aware Responses',
+      'Message Type Detection',
+      'Escalation Handling'
+    ],
     endpoints: {
       health: 'GET /health',
       testLLM: 'POST /test-llm',
       whatsappWebhook: 'POST /webhook/whatsapp',
       sendMessage: 'POST /send-message',
-      conversations: 'GET /admin/conversations'
+      testWhatsApp: 'POST /test-whatsapp',
+      testPrompts: 'POST /test-prompts',
+      conversations: 'GET /admin/conversations',
+      knowledgeBase: 'GET /admin/knowledge-base'
+    },
+    aiCapabilities: {
+      messageTypes: ['greeting', 'technical', 'billing', 'escalation', 'general'],
+      promptSystem: 'Dynamic context-aware prompts',
+      conversationMemory: 'Maintains context across messages',
+      businessContext: 'TechCorp Solutions knowledge base'
     },
     docs: 'https://github.com/webworn/whatsapp-support-automation'
   });
@@ -173,22 +191,18 @@ async function generateAIResponse(message, conversation) {
   try {
     const fetch = (await import('node-fetch')).default;
     
-    // Build conversation context
+    // Detect message type for appropriate prompting
+    const messageType = detectMessageType(message, conversation);
+    
+    // Build dynamic system prompt based on conversation context
+    const systemPrompt = buildSystemPrompt(conversation, messageType);
+    
+    // Build conversation context with recent messages
     const recentMessages = conversation.messages.slice(-6); // Last 6 messages
     const messages = [
       {
         role: 'system',
-        content: `You are a helpful WhatsApp customer support assistant. 
-
-Guidelines:
-- Be friendly, professional, and concise
-- Keep responses under 160 characters when possible (WhatsApp-friendly)
-- Use emojis sparingly and appropriately
-- If you cannot help, offer to escalate to a human agent
-- Always aim to resolve customer issues quickly
-
-Customer: ${conversation.phone}
-Messages: ${conversation.messages.length}`
+        content: systemPrompt
       }
     ];
     
@@ -401,7 +415,7 @@ app.get('/admin/conversations/:phone', (req, res) => {
   });
 });
 
-// Test WhatsApp flow endpoint
+// Test WhatsApp flow endpoint with detailed analysis
 app.post('/test-whatsapp', async (req, res) => {
   try {
     const { phone, message } = req.body;
@@ -414,14 +428,25 @@ app.post('/test-whatsapp', async (req, res) => {
     
     // Simulate incoming WhatsApp message
     const cleanPhone = phone.replace(/[^\d]/g, '');
+    const conversation = getOrCreateConversation(cleanPhone);
+    
+    // Detect message type for analysis
+    const messageType = detectMessageType(message, conversation);
+    
     const aiResponse = await processIncomingMessage(cleanPhone, message);
     
     res.json({
       success: true,
       phone: cleanPhone,
       incomingMessage: message,
+      detectedType: messageType,
       aiResponse: aiResponse,
-      note: 'This simulates a complete WhatsApp conversation flow'
+      conversationStats: {
+        totalMessages: conversation.messages.length,
+        conversationAge: Math.round((Date.now() - conversation.createdAt.getTime()) / 1000),
+        lastActivity: conversation.updatedAt
+      },
+      note: 'This simulates a complete WhatsApp conversation flow with prompt analysis'
     });
     
   } catch (error) {
@@ -430,6 +455,89 @@ app.post('/test-whatsapp', async (req, res) => {
       message: error.message
     });
   }
+});
+
+// Prompt testing endpoint
+app.post('/test-prompts', async (req, res) => {
+  try {
+    const { message, messageType = 'general', conversationHistory = [] } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({
+        error: 'Message is required'
+      });
+    }
+    
+    // Create mock conversation for testing
+    const mockConversation = {
+      phone: 'test-123',
+      messages: conversationHistory.map(msg => ({
+        direction: msg.direction || 'inbound',
+        content: msg.content,
+        timestamp: new Date()
+      })),
+      status: 'active',
+      createdAt: new Date(Date.now() - 300000), // 5 minutes ago
+      updatedAt: new Date()
+    };
+    
+    // Build system prompt
+    const systemPrompt = buildSystemPrompt(mockConversation, messageType);
+    const detectedType = detectMessageType(message, mockConversation);
+    
+    res.json({
+      success: true,
+      input: {
+        message,
+        requestedType: messageType,
+        conversationHistory: conversationHistory.length
+      },
+      analysis: {
+        detectedMessageType: detectedType,
+        systemPrompt: systemPrompt,
+        promptLength: systemPrompt.length
+      },
+      note: 'This shows how the AI prompt system would handle your message'
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      error: 'Prompt test failed',
+      message: error.message
+    });
+  }
+});
+
+// Business knowledge endpoint
+app.get('/admin/knowledge-base', (req, res) => {
+  const { prompts: promptSystem } = require('./prompts');
+  
+  res.json({
+    companyInfo: {
+      name: 'TechCorp Solutions',
+      services: ['Web development', 'Mobile apps', 'Cloud solutions', 'IT consulting'],
+      businessHours: 'Monday-Friday 9AM-6PM EST',
+      supportAvailable: '24/7 via WhatsApp'
+    },
+    promptSystem: {
+      totalPrompts: Object.keys(promptSystem).length,
+      categories: Object.keys(promptSystem),
+      features: [
+        'Dynamic prompt selection',
+        'Context-aware responses',
+        'Message type detection',
+        'Escalation handling',
+        'Multi-scenario support'
+      ]
+    },
+    messageTypes: [
+      'greeting - New customer welcome',
+      'technical - Technical support issues',
+      'billing - Payment and billing inquiries',
+      'escalation - Human agent handoff',
+      'general - Standard customer service'
+    ]
+  });
 });
 
 const port = process.env.PORT || 3000;
@@ -441,8 +549,15 @@ app.listen(port, () => {
   console.log(`   POST /webhook/whatsapp - WhatsApp webhook`);
   console.log(`   POST /send-message - Send WhatsApp message`);
   console.log(`   POST /test-whatsapp - Test conversation flow`);
+  console.log(`   POST /test-prompts - Test AI prompt system`);
   console.log(`   GET  /admin/conversations - View conversations`);
+  console.log(`   GET  /admin/knowledge-base - View prompt system`);
   console.log(`📋 Environment check:`);
   console.log(`   OPENROUTER_API_KEY: ${process.env.OPENROUTER_API_KEY ? '✅ Set' : '❌ Missing'}`);
   console.log(`   MSG91_AUTH_KEY: ${process.env.MSG91_AUTH_KEY ? '✅ Set' : '❌ Missing (demo mode)'}`);
+  console.log(`🧠 AI Features:`);
+  console.log(`   ✅ Dynamic prompt selection`);
+  console.log(`   ✅ Context-aware responses`);
+  console.log(`   ✅ Message type detection`);
+  console.log(`   ✅ Escalation handling`);
 });
