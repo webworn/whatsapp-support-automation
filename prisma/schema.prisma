@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  phoneNumber String   @unique @map("phone_number")
+  name        String?
+  language    String   @default("en")
+  isActive    Boolean  @default(true) @map("is_active")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  conversations Conversation[]
+
+  @@map("users")
+}
+
+model Conversation {
+  id               Int       @id @default(autoincrement())
+  userId           Int       @map("user_id")
+  sessionId        String    @unique @map("session_id")
+  status           String    @default("active") // active, completed, escalated
+  currentFlow      String?   @map("current_flow")
+  currentStep      String?   @map("current_step")
+  language         String    @default("en")
+  escalationReason String?   @map("escalation_reason")
+  resolutionTime   Float?    @map("resolution_time")
+  satisfactionScore Float?   @map("satisfaction_score")
+  metadata         Json?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  completedAt      DateTime? @map("completed_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id              Int       @id @default(autoincrement())
+  conversationId  Int       @map("conversation_id")
+  msg91MessageId  String?   @unique @map("msg91_message_id")
+  direction       String    // inbound, outbound
+  messageType     String    @default("text") @map("message_type") // text, image, document, etc.
+  content         String
+  senderNumber    String?   @map("sender_number")
+  recipientNumber String?   @map("recipient_number")
+  deliveryStatus  String    @default("pending") @map("delivery_status") // pending, sent, delivered, failed
+  isFromLlm       Boolean   @default(false) @map("is_from_llm")
+  llmModelUsed    String?   @map("llm_model_used")
+  llmCost         Float     @default(0.0) @map("llm_cost")
+  processingTime  Float?    @map("processing_time")
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  deliveredAt     DateTime? @map("delivered_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  phoneNumber  String   @map("phone_number")
+  sessionData  Json     @map("session_data")
+  lastActivity DateTime @default(now()) @map("last_activity")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([phoneNumber])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model LlmUsage {
+  id           Int      @id @default(autoincrement())
+  phoneNumber  String   @map("phone_number")
+  model        String
+  promptTokens Int      @map("prompt_tokens")
+  outputTokens Int      @map("output_tokens")
+  totalTokens  Int      @map("total_tokens")
+  cost         Float
+  requestTime  Float    @map("request_time")
+  success      Boolean  @default(true)
+  errorMessage String?  @map("error_message")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([phoneNumber])
+  @@index([createdAt])
+  @@map("llm_usage")
+}
+
+model WebhookLog {
+  id        Int      @id @default(autoincrement())
+  source    String   // msg91, manual, etc.
+  payload   Json
+  signature String?
+  isValid   Boolean  @map("is_valid")
+  processed Boolean  @default(false)
+  error     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([source])
+  @@index([createdAt])
+  @@map("webhook_logs")
+}
