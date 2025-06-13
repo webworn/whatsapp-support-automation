@@ -5,11 +5,11 @@
   "main": "webhook-test-server.js",
   "scripts": {
     "start": "node webhook-test-server.js",
-    "dev": "node webhook-test-server.js"
+    "dev": "node webhook-test-server.js",
+    "build": "echo 'No build step needed for webhook server'"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "crypto": "*"
+    "express": "^4.18.2"
   },
   "engines": {
     "node": ">=18.0.0"
