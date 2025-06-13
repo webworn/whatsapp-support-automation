@@ -1,7 +1,11 @@
 // WhatsApp Support Automation - Production Server
 const express = require('express');
 const { buildSystemPrompt, detectMessageType, getWelcomeMessage } = require('./prompts');
+const UserProfiler = require('./user-profiling');
 const app = express();
+
+// Initialize user profiler
+const userProfiler = new UserProfiler();
 
 // Middleware
 app.use(express.json());
@@ -33,14 +37,18 @@ app.get('/', (req, res) => {
       sendMessage: 'POST /send-message',
       testWhatsApp: 'POST /test-whatsapp',
       testPrompts: 'POST /test-prompts',
+      testPersonalization: 'POST /test-personalization',
       conversations: 'GET /admin/conversations',
+      users: 'GET /admin/users',
       knowledgeBase: 'GET /admin/knowledge-base'
     },
     aiCapabilities: {
       messageTypes: ['greeting', 'technical', 'billing', 'escalation', 'general'],
       promptSystem: 'Dynamic context-aware prompts',
       conversationMemory: 'Maintains context across messages',
-      businessContext: 'TechCorp Solutions knowledge base'
+      businessContext: 'TechCorp Solutions knowledge base',
+      userPersonalization: 'Individual user profiling and behavior analysis',
+      adaptiveResponses: 'Communication style matching and preference learning'
     },
     docs: 'https://github.com/webworn/whatsapp-support-automation'
   });
@@ -181,6 +189,50 @@ async function processIncomingMessage(phoneNumber, message) {
   }
 }
 
+// Enhance system prompt with user personalization
+function enhancePromptWithPersonalization(basePrompt, personalizedContext) {
+  let enhancedPrompt = basePrompt;
+  
+  // Add user profile information
+  enhancedPrompt += `
+
+USER PROFILE ANALYSIS:
+- User Type: ${personalizedContext.userProfile.type}
+- Customer Tier: ${personalizedContext.userProfile.tier}
+- Communication Style: ${personalizedContext.userProfile.communicationStyle}
+- Technical Level: ${personalizedContext.userProfile.technicalLevel}
+- Response Preference: ${personalizedContext.userProfile.responsePreference}
+
+CONVERSATION HISTORY:
+- Total Previous Conversations: ${personalizedContext.conversationHistory.totalConversations}
+- Satisfaction Score: ${personalizedContext.conversationHistory.satisfactionScore}/5
+- Escalation Rate: ${(personalizedContext.conversationHistory.escalationRate * 100).toFixed(1)}%`;
+
+  // Add common issues if available
+  if (personalizedContext.conversationHistory.commonIssues.length > 0) {
+    enhancedPrompt += `
+- Common Issues: ${personalizedContext.conversationHistory.commonIssues.join(', ')}`;
+  }
+
+  // Add personalized instructions
+  if (personalizedContext.personalizedInstructions.length > 0) {
+    enhancedPrompt += `
+
+PERSONALIZED APPROACH:
+${personalizedContext.personalizedInstructions.map(instruction => `- ${instruction}`).join('\n')}`;
+  }
+
+  // Add contextual reminders
+  if (personalizedContext.contextualReminders.length > 0) {
+    enhancedPrompt += `
+
+IMPORTANT REMINDERS:
+${personalizedContext.contextualReminders.map(reminder => `- ${reminder}`).join('\n')}`;
+  }
+
+  return enhancedPrompt;
+}
+
 async function generateAIResponse(message, conversation) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   
@@ -191,18 +243,34 @@ async function generateAIResponse(message, conversation) {
   try {
     const fetch = (await import('node-fetch')).default;
     
+    // Get all conversations for this user for profiling
+    const userConversations = Array.from(conversations.values())
+      .filter(conv => conv.phone === conversation.phone);
+    
+    // Generate personalized context based on user history
+    const personalizedContext = userProfiler.generatePersonalizedContext(
+      conversation.phone, 
+      userConversations
+    );
+    
     // Detect message type for appropriate prompting
     const messageType = detectMessageType(message, conversation);
     
-    // Build dynamic system prompt based on conversation context
-    const systemPrompt = buildSystemPrompt(conversation, messageType);
+    // Build dynamic system prompt with personalization
+    const baseSystemPrompt = buildSystemPrompt(conversation, messageType);
+    
+    // Enhance prompt with user-specific context
+    const personalizedPrompt = enhancePromptWithPersonalization(
+      baseSystemPrompt, 
+      personalizedContext
+    );
     
     // Build conversation context with recent messages
     const recentMessages = conversation.messages.slice(-6); // Last 6 messages
     const messages = [
       {
         role: 'system',
-        content: systemPrompt
+        content: personalizedPrompt
       }
     ];
     
@@ -527,7 +595,8 @@ app.get('/admin/knowledge-base', (req, res) => {
         'Context-aware responses',
         'Message type detection',
         'Escalation handling',
-        'Multi-scenario support'
+        'Multi-scenario support',
+        'User profiling & personalization'
       ]
     },
     messageTypes: [
@@ -540,6 +609,114 @@ app.get('/admin/knowledge-base', (req, res) => {
   });
 });
 
+// User profiles endpoint
+app.get('/admin/users', (req, res) => {
+  const userSummaries = Array.from(conversations.keys()).map(phone => {
+    const userConversations = Array.from(conversations.values())
+      .filter(conv => conv.phone === phone);
+    
+    return userProfiler.getUserSummary(phone) || {
+      phone,
+      totalConversations: userConversations.length,
+      totalMessages: userConversations.reduce((sum, conv) => sum + conv.messages.length, 0),
+      userType: 'unknown'
+    };
+  }).filter(Boolean);
+  
+  res.json({
+    totalUsers: userSummaries.length,
+    users: userSummaries.sort((a, b) => b.totalConversations - a.totalConversations)
+  });
+});
+
+// Specific user profile endpoint
+app.get('/admin/users/:phone', (req, res) => {
+  const phone = req.params.phone;
+  const userConversations = Array.from(conversations.values())
+    .filter(conv => conv.phone === phone);
+  
+  if (userConversations.length === 0) {
+    return res.status(404).json({
+      error: 'User not found'
+    });
+  }
+  
+  const personalizedContext = userProfiler.generatePersonalizedContext(phone, userConversations);
+  const userSummary = userProfiler.getUserSummary(phone);
+  
+  res.json({
+    userSummary,
+    personalizedContext,
+    conversations: userConversations.map(conv => ({
+      messages: conv.messages.length,
+      status: conv.status,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
+      lastMessage: conv.messages[conv.messages.length - 1]?.content
+    }))
+  });
+});
+
+// Test personalization endpoint
+app.post('/test-personalization', async (req, res) => {
+  try {
+    const { phone, message, simulateHistory = false } = req.body;
+    
+    if (!phone || !message) {
+      return res.status(400).json({
+        error: 'Phone number and message are required'
+      });
+    }
+    
+    const cleanPhone = phone.replace(/[^\d]/g, '');
+    
+    // If simulateHistory is true, create some fake conversation history
+    if (simulateHistory && !conversations.has(cleanPhone)) {
+      const mockConversation = {
+        phone: cleanPhone,
+        messages: [
+          { direction: 'inbound', content: 'Hi, my website is down', timestamp: new Date(Date.now() - 86400000) },
+          { direction: 'outbound', content: 'I\'ll help you check that right away', timestamp: new Date(Date.now() - 86400000) },
+          { direction: 'inbound', content: 'Thanks, it\'s working now', timestamp: new Date(Date.now() - 86400000) },
+          { direction: 'inbound', content: 'Hello, I need a refund', timestamp: new Date(Date.now() - 3600000) },
+          { direction: 'outbound', content: 'I can help with that refund request', timestamp: new Date(Date.now() - 3600000) }
+        ],
+        status: 'active',
+        createdAt: new Date(Date.now() - 86400000),
+        updatedAt: new Date(Date.now() - 3600000)
+      };
+      conversations.set(cleanPhone, mockConversation);
+    }
+    
+    // Get current conversation or create new one
+    const conversation = getOrCreateConversation(cleanPhone);
+    
+    // Generate AI response with personalization
+    const aiResponse = await processIncomingMessage(cleanPhone, message);
+    
+    // Get personalization details
+    const userConversations = Array.from(conversations.values())
+      .filter(conv => conv.phone === cleanPhone);
+    const personalizedContext = userProfiler.generatePersonalizedContext(cleanPhone, userConversations);
+    
+    res.json({
+      success: true,
+      phone: cleanPhone,
+      message,
+      aiResponse,
+      personalization: personalizedContext,
+      conversationCount: userConversations.length,
+      note: 'This shows how AI responses are personalized based on user history'
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      error: 'Personalization test failed',
+      message: error.message
+    });
+  }
+});
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`🚀 WhatsApp Support Automation running on http://localhost:${port}`);
@@ -550,7 +727,9 @@ app.listen(port, () => {
   console.log(`   POST /send-message - Send WhatsApp message`);
   console.log(`   POST /test-whatsapp - Test conversation flow`);
   console.log(`   POST /test-prompts - Test AI prompt system`);
+  console.log(`   POST /test-personalization - Test user personalization`);
   console.log(`   GET  /admin/conversations - View conversations`);
+  console.log(`   GET  /admin/users - View user profiles`);
   console.log(`   GET  /admin/knowledge-base - View prompt system`);
   console.log(`📋 Environment check:`);
   console.log(`   OPENROUTER_API_KEY: ${process.env.OPENROUTER_API_KEY ? '✅ Set' : '❌ Missing'}`);
@@ -560,4 +739,6 @@ app.listen(port, () => {
   console.log(`   ✅ Context-aware responses`);
   console.log(`   ✅ Message type detection`);
   console.log(`   ✅ Escalation handling`);
+  console.log(`   ✅ User profiling & personalization`);
+  console.log(`   ✅ Conversation history analysis`);
 });
