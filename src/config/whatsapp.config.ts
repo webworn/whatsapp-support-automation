@@ -10,6 +10,18 @@ export default registerAs('whatsapp', () => ({
     retries: parseInt(process.env.MSG91_RETRIES) || 3,
     retryDelay: parseInt(process.env.MSG91_RETRY_DELAY) || 1000,
   },
+  business: {
+    accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+    appSecret: process.env.WHATSAPP_APP_SECRET,
+    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN,
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+    businessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
+    baseUrl: process.env.WHATSAPP_API_BASE_URL || 'https://graph.facebook.com',
+    version: process.env.WHATSAPP_API_VERSION || 'v18.0',
+    timeout: parseInt(process.env.WHATSAPP_API_TIMEOUT) || 30000,
+    retries: parseInt(process.env.WHATSAPP_API_RETRIES) || 3,
+    retryDelay: parseInt(process.env.WHATSAPP_API_RETRY_DELAY) || 2000,
+  },
   webhook: {
     timeout: parseInt(process.env.WEBHOOK_TIMEOUT) || 30000,
     maxPayloadSize: process.env.WEBHOOK_MAX_PAYLOAD_SIZE || '1mb',
@@ -28,5 +40,6 @@ export default registerAs('whatsapp', () => ({
     richMessages: process.env.ENABLE_RICH_MESSAGES !== 'false',
     mediaMessages: process.env.ENABLE_MEDIA_MESSAGES !== 'false',
     groupMessages: process.env.ENABLE_GROUP_MESSAGES === 'true',
+    businessApi: process.env.ENABLE_WHATSAPP_BUSINESS_API !== 'false',
   },
 }));

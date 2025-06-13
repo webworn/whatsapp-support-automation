@@ -11,6 +11,8 @@ import {
   MSG91MessageDto,
   MSG91DeliveryDto,
   MSG91ReadDto,
+  WhatsAppBusinessWebhookDto,
+  WhatsAppBusinessMessageDto,
 } from './dto/webhook.dto';
 
 @Injectable()
@@ -195,7 +197,7 @@ export class WebhookService {
         bySource[webhook.source] = (bySource[webhook.source] || 0) + 1;
         
         // Extract type from payload if available
-        const type = webhook.payload?.type || 'unknown';
+        const type = (webhook.payload as any)?.type || 'unknown';
         byType[type] = (byType[type] || 0) + 1;
       }
 
@@ -207,7 +209,7 @@ export class WebhookService {
           timestamp: w.createdAt,
           error: w.error!,
           source: w.source,
-          type: w.payload?.type || 'unknown',
+          type: (w.payload as any)?.type || 'unknown',
         }));
 
       return {
@@ -254,7 +256,7 @@ export class WebhookService {
       return recentWebhooks.map(webhook => ({
         id: webhook.id,
         source: webhook.source,
-        type: webhook.payload?.type || 'unknown',
+        type: (webhook.payload as any)?.type || 'unknown',
         status: webhook.processed && webhook.isValid ? 'success' : 'failed',
         error: webhook.error,
         timestamp: webhook.createdAt,
@@ -329,5 +331,169 @@ export class WebhookService {
       this.logger.error('Failed to retry failed webhooks', error);
       return 0;
     }
+  }
+
+  async processWhatsAppBusinessWebhook(
+    payload: WhatsAppBusinessWebhookDto,
+    rawData: RawWebhookData,
+  ): Promise<{ webhookId: string }> {
+    const webhookLog = await this.logWebhook(WebhookSource.WHATSAPP_BUSINESS, rawData, true);
+
+    try {
+      // Process each entry in the webhook
+      for (const entry of payload.entry) {
+        for (const change of entry.changes) {
+          if (change.field === 'messages') {
+            await this.processWhatsAppBusinessMessages(change.value);
+          } else if (change.field === 'message_status') {
+            await this.processWhatsAppBusinessStatuses(change.value);
+          }
+        }
+      }
+
+      // Update webhook log as processed
+      await this.updateWebhookLog(webhookLog.id, true);
+
+      this.logger.log('Processed WhatsApp Business webhook successfully');
+
+      return { webhookId: webhookLog.id.toString() };
+    } catch (error) {
+      // Update webhook log with error
+      await this.updateWebhookLog(webhookLog.id, false, error.message);
+      throw error;
+    }
+  }
+
+  private async processWhatsAppBusinessMessages(value: any): Promise<void> {
+    if (!value.messages || !Array.isArray(value.messages)) {
+      return;
+    }
+
+    for (const message of value.messages) {
+      try {
+        await this.processWhatsAppBusinessMessage(message, value);
+      } catch (error) {
+        this.logger.error('Failed to process WhatsApp Business message', {
+          error: error.message,
+          messageId: message.id,
+          from: message.from,
+        });
+      }
+    }
+  }
+
+  private async processWhatsAppBusinessMessage(
+    message: WhatsAppBusinessMessageDto,
+    value: any,
+  ): Promise<void> {
+    this.logger.log(`Processing WhatsApp Business message from ${message.from}`, {
+      messageId: message.id,
+      type: message.type,
+    });
+
+    // Extract message content based on type
+    let messageContent = '';
+    let messageType = message.type;
+
+    switch (message.type) {
+      case 'text':
+        messageContent = message.text?.body || '';
+        break;
+      case 'interactive':
+        if (message.interactive?.button_reply) {
+          messageContent = message.interactive.button_reply.title;
+          messageType = 'button_reply';
+        } else if (message.interactive?.list_reply) {
+          messageContent = message.interactive.list_reply.title;
+          messageType = 'list_reply';
+        }
+        break;
+      case 'image':
+        messageContent = message.image?.caption || '[Image message]';
+        break;
+      case 'document':
+        messageContent = message.document?.caption || message.document?.filename || '[Document message]';
+        break;
+      case 'audio':
+        messageContent = '[Audio message]';
+        break;
+      case 'video':
+        messageContent = message.video?.caption || '[Video message]';
+        break;
+      default:
+        messageContent = `[${message.type} message]`;
+    }
+
+    // Get contact name if available
+    const contact = value.contacts?.find((c: any) => c.wa_id === message.from);
+    const contactName = contact?.profile?.name;
+
+    // Use the conversation service to process the message
+    await this.conversationService.processIncomingMessage({
+      phoneNumber: message.from,
+      message: messageContent,
+      messageType: messageType as any,
+      msg91MessageId: message.id, // Use WhatsApp message ID
+      timestamp: message.timestamp,
+      metadata: {
+        source: 'whatsapp_business',
+        contactName,
+        originalMessage: message,
+        phoneNumberId: value.metadata?.phone_number_id,
+        displayPhoneNumber: value.metadata?.display_phone_number,
+      },
+    });
+
+    // Emit WhatsApp Business event
+    this.eventEmitter.emit('webhook.whatsapp_business.message', {
+      from: message.from,
+      message: messageContent,
+      messageId: message.id,
+      messageType: messageType,
+      contactName,
+      timestamp: new Date(parseInt(message.timestamp) * 1000),
+    });
+  }
+
+  private async processWhatsAppBusinessStatuses(value: any): Promise<void> {
+    if (!value.statuses || !Array.isArray(value.statuses)) {
+      return;
+    }
+
+    for (const status of value.statuses) {
+      try {
+        await this.processWhatsAppBusinessStatus(status);
+      } catch (error) {
+        this.logger.error('Failed to process WhatsApp Business status', {
+          error: error.message,
+          messageId: status.id,
+          status: status.status,
+        });
+      }
+    }
+  }
+
+  private async processWhatsAppBusinessStatus(status: any): Promise<void> {
+    this.logger.log(`Processing WhatsApp Business status: ${status.status} for ${status.id}`);
+
+    // Update message delivery status
+    const updated = await this.conversationService.updateMessageDeliveryStatus(
+      status.id,
+      status.status,
+    );
+
+    if (!updated) {
+      this.logger.warn(`Message not found for WhatsApp Business status: ${status.id}`);
+    }
+
+    // Emit status event
+    this.eventEmitter.emit('webhook.whatsapp_business.status', {
+      messageId: status.id,
+      status: status.status,
+      recipientId: status.recipient_id,
+      timestamp: new Date(parseInt(status.timestamp) * 1000),
+      conversation: status.conversation,
+      pricing: status.pricing,
+    });
   }
 }

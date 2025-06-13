@@ -2,9 +2,12 @@ import { Processor, Process } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { ConversationService } from '../../../modules/conversation/conversation.service';
+import { WebhookService } from '../../../modules/webhook/webhook.service';
 import { WebhookJobData } from '../queue.service';
 import { validateWebhookSignature } from '../../utils/validation.util';
 import { PrismaService } from '../../database/prisma.service';
+import { WebhookSource } from '../../../modules/webhook/dto/webhook.dto';
+import * as crypto from 'crypto';
 
 @Processor('webhook')
 export class WebhookProcessor {
@@ -12,6 +15,7 @@ export class WebhookProcessor {
 
   constructor(
     private readonly conversationService: ConversationService,
+    private readonly webhookService: WebhookService,
     private readonly prismaService: PrismaService,
   ) {}
 
@@ -29,16 +33,30 @@ export class WebhookProcessor {
       await this.logWebhook(payload, signature, source);
 
       // Validate webhook signature
-      if (source === 'msg91') {
+      if (source === WebhookSource.MSG91) {
         const isValid = await this.validateMsg91Webhook(payload, signature);
+        if (!isValid) {
+          throw new Error('Invalid webhook signature');
+        }
+      } else if (source === WebhookSource.WHATSAPP_BUSINESS) {
+        const isValid = await this.validateWhatsAppBusinessWebhook(payload, signature);
         if (!isValid) {
           throw new Error('Invalid webhook signature');
         }
       }
 
       // Process based on webhook type
-      if (source === 'msg91') {
+      if (source === WebhookSource.MSG91) {
         await this.processMsg91Webhook(payload);
+      } else if (source === WebhookSource.WHATSAPP_BUSINESS) {
+        await this.webhookService.processWhatsAppBusinessWebhook(payload, {
+          headers: {},
+          body: payload,
+          query: {},
+          ip: '',
+          userAgent: '',
+          receivedAt,
+        });
       } else {
         this.logger.warn(`Unknown webhook source: ${source}`);
       }
@@ -204,6 +222,30 @@ export class WebhookProcessor {
       });
     } catch (error) {
       this.logger.error('Failed to log webhook', error);
+    }
+  }
+
+  private async validateWhatsAppBusinessWebhook(payload: any, signature: string): Promise<boolean> {
+    try {
+      const appSecret = process.env.WHATSAPP_APP_SECRET;
+      if (!appSecret) {
+        this.logger.warn('WHATSAPP_APP_SECRET not configured');
+        return false;
+      }
+
+      const payloadString = JSON.stringify(payload);
+      const expectedSignature = 'sha256=' + crypto
+        .createHmac('sha256', appSecret)
+        .update(payloadString)
+        .digest('hex');
+
+      return crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expectedSignature)
+      );
+    } catch (error) {
+      this.logger.error('Error validating WhatsApp Business webhook signature', error);
+      return false;
     }
   }
 

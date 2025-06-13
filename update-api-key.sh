@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 echo "🔑 OpenRouter API Key Setup"

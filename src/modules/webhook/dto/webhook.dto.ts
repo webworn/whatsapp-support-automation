@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsObject, IsEnum, IsNumber, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum WebhookType {
@@ -10,6 +10,7 @@ export enum WebhookType {
 
 export enum WebhookSource {
   MSG91 = 'msg91',
+  WHATSAPP_BUSINESS = 'whatsapp_business',
   MANUAL = 'manual',
   TEST = 'test',
 }
@@ -160,4 +161,177 @@ export interface RawWebhookData {
   ip: string;
   userAgent: string;
   receivedAt: Date;
+}
+
+// WhatsApp Business API DTOs
+export class WhatsAppBusinessWebhookDto {
+  @ApiProperty({ description: 'WhatsApp Business object type' })
+  @IsString()
+  object: string;
+
+  @ApiProperty({ description: 'Webhook entry data', type: [Object] })
+  @IsObject()
+  entry: WhatsAppBusinessEntryDto[];
+}
+
+export class WhatsAppBusinessEntryDto {
+  @ApiProperty({ description: 'WhatsApp Business Account ID' })
+  @IsString()
+  id: string;
+
+  @ApiProperty({ description: 'Webhook changes', type: [Object] })
+  @IsObject()
+  changes: WhatsAppBusinessChangeDto[];
+}
+
+export class WhatsAppBusinessChangeDto {
+  @ApiProperty({ description: 'The value object' })
+  @IsObject()
+  value: WhatsAppBusinessValueDto;
+
+  @ApiProperty({ description: 'The field that changed' })
+  @IsString()
+  field: string;
+}
+
+export class WhatsAppBusinessValueDto {
+  @ApiProperty({ description: 'Messaging product', required: false })
+  @IsOptional()
+  @IsString()
+  messaging_product?: string;
+
+  @ApiProperty({ description: 'Metadata about the phone number', required: false })
+  @IsOptional()
+  @IsObject()
+  metadata?: {
+    display_phone_number: string;
+    phone_number_id: string;
+  };
+
+  @ApiProperty({ description: 'Array of contact objects', required: false })
+  @IsOptional()
+  @IsObject()
+  contacts?: Array<{
+    profile: {
+      name: string;
+    };
+    wa_id: string;
+  }>;
+
+  @ApiProperty({ description: 'Array of message objects', required: false })
+  @IsOptional()
+  @IsObject()
+  messages?: WhatsAppBusinessMessageDto[];
+
+  @ApiProperty({ description: 'Array of status objects', required: false })
+  @IsOptional()
+  @IsObject()
+  statuses?: Array<{
+    id: string;
+    status: string;
+    timestamp: string;
+    recipient_id: string;
+    conversation?: {
+      id: string;
+      expiration_timestamp?: string;
+      origin: {
+        type: string;
+      };
+    };
+    pricing?: {
+      billable: boolean;
+      pricing_model: string;
+      category: string;
+    };
+  }>;
+}
+
+export class WhatsAppBusinessMessageDto {
+  @ApiProperty({ description: 'Message ID' })
+  @IsString()
+  id: string;
+
+  @ApiProperty({ description: 'Sender WhatsApp ID' })
+  @IsString()
+  from: string;
+
+  @ApiProperty({ description: 'Message timestamp' })
+  @IsString()
+  timestamp: string;
+
+  @ApiProperty({ description: 'Message type' })
+  @IsString()
+  type: string;
+
+  @ApiProperty({ description: 'Text message content', required: false })
+  @IsOptional()
+  @IsObject()
+  text?: {
+    body: string;
+  };
+
+  @ApiProperty({ description: 'Image message content', required: false })
+  @IsOptional()
+  @IsObject()
+  image?: {
+    caption?: string;
+    mime_type: string;
+    sha256: string;
+    id: string;
+  };
+
+  @ApiProperty({ description: 'Document message content', required: false })
+  @IsOptional()
+  @IsObject()
+  document?: {
+    caption?: string;
+    filename?: string;
+    mime_type: string;
+    sha256: string;
+    id: string;
+  };
+
+  @ApiProperty({ description: 'Audio message content', required: false })
+  @IsOptional()
+  @IsObject()
+  audio?: {
+    mime_type: string;
+    sha256: string;
+    id: string;
+    voice?: boolean;
+  };
+
+  @ApiProperty({ description: 'Video message content', required: false })
+  @IsOptional()
+  @IsObject()
+  video?: {
+    caption?: string;
+    mime_type: string;
+    sha256: string;
+    id: string;
+  };
+
+  @ApiProperty({ description: 'Interactive message content', required: false })
+  @IsOptional()
+  @IsObject()
+  interactive?: {
+    type: string;
+    button_reply?: {
+      id: string;
+      title: string;
+    };
+    list_reply?: {
+      id: string;
+      title: string;
+      description?: string;
+    };
+  };
+
+  @ApiProperty({ description: 'Context information', required: false })
+  @IsOptional()
+  @IsObject()
+  context?: {
+    from: string;
+    id: string;
+  };
 }
