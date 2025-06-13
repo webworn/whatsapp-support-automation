@@ -9,6 +9,8 @@ import {
 } from '@nestjs/terminus';
 import { PrismaService } from '../database/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { LlmService } from '../../modules/llm/llm.service';
+import { DeliveryService } from '../../modules/delivery/delivery.service';
 
 @ApiTags('Health')
 @Controller('health')
@@ -19,6 +21,8 @@ export class HealthController {
     private disk: DiskHealthIndicator,
     private prismaService: PrismaService,
     private redisService: RedisService,
+    private llmService: LlmService,
+    private deliveryService: DeliveryService,
   ) {}
 
   @Get()
@@ -42,6 +46,26 @@ export class HealthController {
         const isHealthy = await this.redisService.ping();
         return {
           redis: {
+            status: isHealthy ? 'up' : 'down',
+          },
+        };
+      },
+
+      // LLM service health
+      async () => {
+        const isHealthy = await this.llmService.validateService();
+        return {
+          llm: {
+            status: isHealthy ? 'up' : 'down',
+          },
+        };
+      },
+
+      // Delivery service health
+      async () => {
+        const isHealthy = await this.deliveryService.validateService();
+        return {
+          delivery: {
             status: isHealthy ? 'up' : 'down',
           },
         };

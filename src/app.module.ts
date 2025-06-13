@@ -12,6 +12,8 @@ import { SessionModule } from './shared/session/session.module';
 
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { LlmModule } from './modules/llm/llm.module';
+import { WebhookModule } from './modules/webhook/webhook.module';
+import { DeliveryModule } from './modules/delivery/delivery.module';
 
 import { HealthController } from './shared/health/health.controller';
 import { AppController } from './app.controller';
@@ -88,6 +90,8 @@ import { AppService } from './app.service';
     // Feature modules
     ConversationModule,
     LlmModule,
+    WebhookModule,
+    DeliveryModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

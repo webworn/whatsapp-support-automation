@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { ConfigService } from '@nestjs/config';
 import { WebhookProcessor } from './processors/webhook.processor';
+import { MessageProcessor } from './processors/message.processor';
 import { QueueService } from './queue.service';
 
 @Module({
@@ -47,7 +48,7 @@ import { QueueService } from './queue.service';
       inject: [ConfigService],
     }),
   ],
-  providers: [QueueService, WebhookProcessor],
+  providers: [QueueService, WebhookProcessor, MessageProcessor],
   exports: [QueueService],
 })
 export class QueueModule {}
