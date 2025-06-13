@@ -154,3 +154,7 @@ prisma/migrations/
 
 # Build
 build/
+
+# Local development files
+server.log
+dev.db
