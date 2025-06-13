@@ -1,272 +1,180 @@
-# 🔄 Agent Resume Guide - WhatsApp Support Automation
+# 🚀 WhatsApp Business Webhook - Resume Guide
 
-## 🚨 **RATE LIMIT RECOVERY INSTRUCTIONS**
+## Current Status (Updated: 6/13/2025)
 
-If you're reading this, the previous agent likely hit token limits. Here's everything you need to know to continue seamlessly.
+**✅ PHASE 7 COMPLETE**: WhatsApp Business webhook successfully implemented and deployed!
 
----
+### What's Working:
+- 🌐 **Live webhook server**: https://whatsapp-support-automation-production.up.railway.app/
+- ✅ **All endpoints functional**: Health, verification, message processing
+- ✅ **WhatsApp API sending**: Confirmed working via Graph API
+- ✅ **Meta webhook verification**: Successfully verified
+- ✅ **Railway deployment**: Stable and monitored
 
-## 📍 **CURRENT PROJECT STATUS**
-
-**✅ PHASE 1 COMPLETE**: Enterprise Foundation Architecture  
-**🎯 NEXT PHASE**: Core Business Services Implementation  
-**📊 Progress**: 20% Complete  
-**⏰ Time Invested**: ~45 minutes  
-
----
-
-## 🗂️ **WHAT'S ALREADY DONE**
-
-### ✅ **Infrastructure Layer**
-- **NestJS Application**: Fully configured with TypeScript
-- **Database**: PostgreSQL + Prisma schema with 6 models
-- **Caching**: Redis service with pub/sub capabilities
-- **Configuration**: Environment management for all services
-- **Logging**: Winston with structured JSON output
-- **Health Checks**: Database and Redis monitoring
-- **Error Handling**: Global filters and interceptors
-
-### ✅ **Project Structure**
-```
-whatsapp-development/
-├── ✅ CLAUDE.md              # Your context and guidelines
-├── ✅ PROGRESS_LOG.md        # Detailed progress tracking  
-├── ✅ package.json           # Dependencies and scripts
-├── ✅ prisma/schema.prisma   # Database models
-├── ✅ src/
-│   ├── ✅ main.ts            # Application entry
-│   ├── ✅ app.module.ts      # Root module
-│   ├── ✅ config/            # Configuration modules
-│   ├── ✅ shared/            # Shared services
-│   └── 🔲 modules/           # Business logic (NEXT)
-└── ✅ Git Repository         # All work committed
-```
-
-### ✅ **Key Services Ready**
-- **PrismaService**: Database operations
-- **RedisService**: Caching and sessions  
-- **LoggingInterceptor**: Request/response logging
-- **HttpExceptionFilter**: Error handling
-- **Health endpoints**: `/health`, `/health/live`, `/health/ready`
+### Current Issue:
+🔄 **Development Mode Limitation**: App only receives webhooks from app administrators/test users  
 
 ---
 
-## 🎯 **YOUR IMMEDIATE MISSION**
+## 🎯 Tomorrow's Tasks
 
-### **PHASE 2: Core Business Services** (START HERE)
+### 1. Fix Meta Developer Console Configuration
 
-**Objective**: Implement session management, LLM integration, and conversation services.
+**Problem**: Your app is in Development mode, so webhooks only work for:
+- App administrators 
+- Test users (currently disabled)
 
-#### **Priority 1: Session Manager** 
-```typescript
-// Create: src/shared/session/session.service.ts
-// Purpose: Redis-backed user session management
-// Features: Session lifecycle, context storage, expiration
-```
+**Solution Options**:
 
-#### **Priority 2: LLM Handler**
-```typescript  
-// Create: src/modules/llm/llm.service.ts
-// Purpose: OpenRouter integration with fallback models
-// Features: Chat completions, cost tracking, error handling
-```
-
-#### **Priority 3: Conversation Service**
-```typescript
-// Create: src/modules/conversation/conversation.service.ts  
-// Purpose: Business logic for conversation management
-// Features: User creation, message storage, state tracking
-```
-
----
-
-## 🚀 **QUICK START COMMANDS**
-
-### **1. Validate Current State**
+#### Option A: Add Yourself as App Administrator (RECOMMENDED)
 ```bash
-# Check what's committed
+# Steps:
+1. Go to Meta Developer Console → App Settings → Basic → App Roles
+2. Click "Add People" → "Administrators" 
+3. Add your Facebook account as admin
+4. Ensure your WhatsApp number (919664304532) is linked to that Facebook account
+5. Test: Send "hi" from your WhatsApp to the business number
+```
+
+#### Option B: Request Live Mode (Production)
+```bash
+# Steps:
+1. Go to App Review → Advanced Access
+2. Request "whatsapp_business_messaging" permission
+3. Submit app for review (usually approved quickly)
+4. Once live, all users can send webhooks
+```
+
+### 2. Test End-to-End Webhook Flow
+
+```bash
+# Once configuration is fixed, test:
+1. Send WhatsApp message: "hi" to your business number
+2. Check Railway logs for incoming webhook
+3. Verify AI response is generated
+4. Confirm message processing pipeline
+```
+
+---
+
+## 🛠 Environment Variables Needed
+
+Set these in Railway for production:
+
+```env
+# WhatsApp Business API (get from Meta Developer Console)
+WHATSAPP_VERIFY_TOKEN=test_verify_token_123
+WHATSAPP_APP_SECRET=your_app_secret_from_meta
+WHATSAPP_ACCESS_TOKEN=EAANULRpPnZC8BO7k9MYjn5b2feMuDbIj3S4VXXbIyfBM1k4Pxiilqnc21I4ONzwlBqiIJ5WNpxLPZCSv4QJBpo5GZC1ly12snJVcNuEru83MYczTHD8dN2e79u4zgsdtcll1AwZAW9qGCPQXanbCGPt8d04s4ru3wdFUR93OZAudc2ofbwKzMXkcfqWatZALlPJZBA1TGjyrvEt0OTtMMLggbbkr05QxxzZA2szp9vJHkstDMPzDGFUZD
+WHATSAPP_PHONE_NUMBER_ID=665397593326012
+
+# Optional: AI Integration
+OPENROUTER_API_KEY=your_openrouter_key
+```
+
+---
+
+## 🧪 Quick Test Commands
+
+### Test Webhook Server
+```bash
+# Health check
+curl https://whatsapp-support-automation-production.up.railway.app/health
+
+# Webhook verification (should return challenge)
+curl "https://whatsapp-support-automation-production.up.railway.app/webhooks/whatsapp-business?hub.mode=subscribe&hub.verify_token=test_verify_token_123&hub.challenge=test123"
+
+# Test message processing
+curl -X POST https://whatsapp-support-automation-production.up.railway.app/webhooks/test-whatsapp-business \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "919664304532", "message": "hi"}'
+```
+
+### Test WhatsApp API Sending
+```bash
+# Send template message (already working)
+curl -i -X POST \
+  https://graph.facebook.com/v22.0/665397593326012/messages \
+  -H 'Authorization: Bearer [YOUR_ACCESS_TOKEN]' \
+  -H 'Content-Type: application/json' \
+  -d '{ "messaging_product": "whatsapp", "to": "919664304532", "type": "template", "template": { "name": "hello_world", "language": { "code": "en_US" } } }'
+```
+
+---
+
+## 📋 Meta Developer Console Configuration
+
+### Current Working Settings:
+- **Callback URL**: `https://whatsapp-support-automation-production.up.railway.app/webhooks/whatsapp-business`
+- **Verify Token**: `test_verify_token_123`
+- **Webhook Fields**: `messages` (subscribed)
+- **Verification Status**: ✅ Verified
+
+### What You Need:
+- **App Secret**: From App Settings → Basic
+- **Access Token**: From WhatsApp → API Setup  
+- **Phone Number ID**: `665397593326012` (already have)
+
+---
+
+## 🔧 If Issues Arise
+
+### Server Not Responding
+```bash
+# Check Railway deployment
+git status
 git log --oneline -3
 
-# Verify project structure  
-ls -la src/
-
-# Check if dependencies are installed
-npm list --depth=0
+# Redeploy if needed
+git add .
+git commit -m "Update webhook configuration"
+git push origin main
 ```
 
-### **2. Environment Setup**  
+### Webhook Verification Fails
 ```bash
-# Install dependencies (if needed)
-npm install
-
-# Generate Prisma client
-npm run db:generate
-
-# Copy environment template
-cp .env.example .env
-# ⚠️ Add your API keys to .env
+# Check exact URL and token in Meta Console
+# Ensure no extra spaces or characters
+# Verify Railway environment variables are set
 ```
 
-### **3. Test Current Setup**
+### No Incoming Webhooks
 ```bash
-# Start development server
-npm run start:dev
-
-# Test health endpoint (new terminal)
-curl http://localhost:3000/api/v1/health
+# Verify app administrator setup
+# Check app is using correct phone number
+# Ensure development mode permissions
 ```
 
 ---
 
-## 📋 **IMPLEMENTATION CHECKLIST**
+## 📈 Success Criteria
 
-### **Phase 2 Tasks** (Your Focus):
-- [ ] **Session Service**: Create Redis-backed session management
-- [ ] **LLM Module**: Implement OpenRouter integration  
-- [ ] **Conversation Module**: Build conversation business logic
-- [ ] **Queue System**: Setup Bull Queue for async processing
-- [ ] **Event System**: Add domain events for decoupling
+### ✅ Already Achieved:
+- Webhook server deployed and stable
+- All endpoints tested and working
+- Meta webhook verification successful
+- WhatsApp API sending confirmed
 
-### **Required Files to Create**:
-```
-🔲 src/shared/session/
-   ├── session.module.ts
-   ├── session.service.ts
-   └── dto/session.dto.ts
-
-🔲 src/modules/llm/
-   ├── llm.module.ts
-   ├── llm.service.ts
-   ├── openrouter.service.ts
-   └── dto/llm-request.dto.ts
-
-🔲 src/modules/conversation/
-   ├── conversation.module.ts
-   ├── conversation.service.ts
-   ├── conversation.repository.ts
-   └── dto/conversation.dto.ts
-
-🔲 src/shared/queue/
-   ├── queue.module.ts
-   └── processors/webhook.processor.ts
-```
+### 🎯 Tomorrow's Goal:
+- Fix development mode limitation
+- Receive incoming WhatsApp webhooks
+- End-to-end message flow working
+- AI responses sent back to WhatsApp
 
 ---
 
-## 🧭 **ARCHITECTURE CONTEXT**
+## 🚀 Quick Start Commands
 
-### **Technology Decisions Made**:
-- **Framework**: NestJS (enterprise-grade, dependency injection)
-- **Database**: PostgreSQL + Prisma (type-safe ORM)
-- **Cache**: Redis (sessions, queues, pub/sub)
-- **LLM**: OpenRouter (multi-model support)
-- **WhatsApp**: MSG91 API (webhook-based)
-- **Queue**: Bull Queue (Redis-backed job processing)
-
-### **Design Patterns**:
-- **Event-driven architecture** with domain events
-- **Circuit breaker** for external API resilience  
-- **Multi-tier caching** (Redis + in-memory)
-- **Retry mechanisms** with exponential backoff
-- **Structured logging** for observability
-
-### **Code Standards** (from CLAUDE.md):
-- **TypeScript strict mode** with proper typing
-- **Async/await** over promises
-- **Descriptive error classes** with context
-- **Dependency injection** for all services
-- **Structured logging** with metadata
-
----
-
-## 🎯 **SUCCESS CRITERIA FOR PHASE 2**
-
-### **Must Achieve**:
-- [ ] **Session Management**: Create, update, expire user sessions
-- [ ] **LLM Integration**: Successfully call OpenRouter with fallbacks
-- [ ] **Conversation Flow**: Store and retrieve conversation state
-- [ ] **Error Resilience**: Handle external API failures gracefully
-- [ ] **Performance**: Sub-200ms response times for session operations
-
-### **Validation Tests**:
 ```bash
-# After implementing each service:
-npm run test              # Unit tests pass
-npm run lint              # Code style compliance  
-npm run type-check        # TypeScript validation
-curl /health              # All services healthy
+# Check current status
+git status
+cat PROGRESS_LOG.md | head -20
+
+# Test webhook server
+curl https://whatsapp-support-automation-production.up.railway.app/health
+
+# Check Railway logs (if needed)
+# Go to Railway dashboard → your project → Deployments → Logs
 ```
 
----
-
-## ⚠️ **CRITICAL REQUIREMENTS**
-
-### **Environment Variables Needed**:
-```env
-# Add these to your .env file:
-OPENROUTER_API_KEY=sk-or-...
-MSG91_AUTH_KEY=your-msg91-key  
-MSG91_WEBHOOK_SECRET=your-webhook-secret
-DATABASE_URL=postgresql://...
-REDIS_URL=redis://localhost:6379
-```
-
-### **External Dependencies**:
-- **PostgreSQL**: Running and accessible
-- **Redis**: Running for sessions and queues
-- **OpenRouter Account**: For LLM API access
-- **MSG91 Account**: For WhatsApp API (Phase 3)
-
----
-
-## 🔍 **DEBUGGING HELPERS**
-
-### **If Something's Wrong**:
-```bash
-# Check logs
-npm run start:dev 2>&1 | grep ERROR
-
-# Validate database
-npm run db:studio
-
-# Check Redis connection
-redis-cli ping
-
-# Review configuration
-cat .env | grep -v '^#'
-```
-
-### **Common Issues**:
-1. **Missing Dependencies**: Run `npm install`
-2. **Database Not Connected**: Check `DATABASE_URL`
-3. **Redis Not Running**: Start Redis server
-4. **TypeScript Errors**: Run `npm run type-check`
-5. **Port Conflicts**: Change `PORT` in `.env`
-
----
-
-## 📞 **ESCALATION PATH**
-
-**If You're Stuck**:
-1. **Read CLAUDE.md** for detailed project context
-2. **Check PROGRESS_LOG.md** for current status
-3. **Review git history** for implementation patterns
-4. **Validate environment** against `.env.example`
-
-**Emergency Reset**:
-```bash
-git status                # Check uncommitted changes
-git stash                 # Save current work
-git reset --hard HEAD     # Reset to last commit
-npm install               # Reinstall dependencies
-```
-
----
-
-## 🚀 **START CODING: Phase 2 Implementation**
-
-**Your first task**: Create the Session Service in `src/shared/session/session.service.ts`
-
-**Follow the patterns** established in Phase 1 and use the utilities already created.
-
-**Good luck!** The foundation is solid - now build the business logic! 🎯
+**Your WhatsApp Business webhook is 95% complete!** Just need to fix the Meta app configuration for development mode. 🎉
