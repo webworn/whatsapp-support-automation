@@ -519,6 +519,44 @@ async healthCheck(): Promise<HealthCheckResult> {
 
 ---
 
+## Rate Limit Recovery & Progress Tracking
+
+### 🚨 **Token Limit Handling**
+If an agent hits token limits during development, follow these steps:
+
+1. **Read Progress Log**: Check `PROGRESS_LOG.md` for current status
+2. **Read Resume Guide**: Follow `RESUME_GUIDE.md` for continuation instructions
+3. **Validate Environment**: Ensure all services are running
+4. **Check Git Status**: Review committed work and current state
+5. **Continue Implementation**: Pick up from the documented next phase
+
+### 📊 **Progress Tracking Files**
+- **`PROGRESS_LOG.md`**: Detailed progress with phase completion status
+- **`RESUME_GUIDE.md`**: Quick-start instructions for new agents
+- **`CLAUDE.md`**: This file - comprehensive project context
+- **Git History**: All work is committed with descriptive messages
+
+### 🔄 **Agent Handoff Protocol**
+When an agent change occurs:
+
+```bash
+# New agent startup sequence
+git log --oneline -5          # Review recent commits
+cat PROGRESS_LOG.md           # Check current phase
+cat RESUME_GUIDE.md           # Get immediate next steps
+npm run start:dev             # Validate current setup
+curl http://localhost:3000/api/v1/health  # Test services
+```
+
+### 📋 **Phase Tracking**
+Each implementation phase is:
+- ✅ **Documented** in PROGRESS_LOG.md
+- 🎯 **Committed** to git with descriptive messages
+- 📝 **Tested** with validation steps
+- 🔄 **Resumable** from any point
+
+---
+
 ## Support and Troubleshooting
 
 ### Common Issues
@@ -527,6 +565,7 @@ async healthCheck(): Promise<HealthCheckResult> {
 3. **MSG91 webhook verification failed** → Check webhook secret
 4. **LLM timeout errors** → Increase timeout or implement fallback
 5. **High memory usage** → Review session cleanup logic
+6. **Agent continuation** → Check PROGRESS_LOG.md and RESUME_GUIDE.md
 
 ### Debugging Commands
 ```bash
@@ -541,6 +580,19 @@ npx prisma studio
 
 # Performance profiling
 npm run start:dev -- --inspect
+
+# Progress tracking
+cat PROGRESS_LOG.md | head -20
+git log --oneline -10
+```
+
+### Recovery Commands
+```bash
+# If agent hits token limits
+cat RESUME_GUIDE.md           # Quick start instructions
+cat PROGRESS_LOG.md           # Detailed progress status
+git status                    # Check current state
+npm run start:dev             # Validate setup
 ```
 
 ### Contact Information
@@ -548,3 +600,4 @@ npm run start:dev -- --inspect
 - **DevOps**: [DevOps Team]
 - **On-call**: [On-call Rotation]
 - **Documentation**: [Wiki/Confluence Link]
+- **Progress Tracking**: PROGRESS_LOG.md + RESUME_GUIDE.md
