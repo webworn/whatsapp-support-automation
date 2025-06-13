@@ -3,11 +3,13 @@ const express = require('express');
 const { buildSystemPrompt, detectMessageType, getWelcomeMessage } = require('./prompts');
 const UserProfiler = require('./user-profiling');
 const TokenOptimizer = require('./token-optimizer');
+const MSG91Integration = require('./msg91-integration');
 const app = express();
 
 // Initialize systems
 const userProfiler = new UserProfiler();
 const tokenOptimizer = new TokenOptimizer();
+const msg91 = new MSG91Integration();
 
 // Middleware
 app.use(express.json());
@@ -46,7 +48,9 @@ app.get('/', (req, res) => {
       conversations: 'GET /admin/conversations',
       users: 'GET /admin/users',
       tokenAnalytics: 'GET /admin/token-analytics',
-      knowledgeBase: 'GET /admin/knowledge-base'
+      knowledgeBase: 'GET /admin/knowledge-base',
+      testMSG91: 'POST /admin/test-msg91-connection',
+      webhookLogs: 'GET /admin/webhook-logs'
     },
     aiCapabilities: {
       messageTypes: ['greeting', 'technical', 'billing', 'escalation', 'general'],
@@ -56,8 +60,11 @@ app.get('/', (req, res) => {
       userPersonalization: 'Individual user profiling and behavior analysis',
       adaptiveResponses: 'Communication style matching and preference learning',
       tokenOptimization: 'Intelligent cost reduction while maintaining quality',
-      costEfficiency: '40-70% token savings through smart optimization'
+      costEfficiency: '40-70% token savings through smart optimization',
+      whatsappIntegration: 'Real WhatsApp Business API with MSG91',
+      webhookSecurity: 'HMAC signature validation and rate limiting'
     },
+    whatsappStatus: msg91.getConfigurationStatus(),
     docs: 'https://github.com/webworn/whatsapp-support-automation'
   });
 });
@@ -338,29 +345,50 @@ async function generateAIResponse(message, conversation) {
   }
 }
 
-// WhatsApp Webhook endpoint
+// WhatsApp Webhook endpoint with MSG91 validation
 app.post('/webhook/whatsapp', async (req, res) => {
   try {
+    const rawBody = JSON.stringify(req.body);
+    const signature = req.headers['x-msg91-signature'] || req.headers['signature'];
+    const timestamp = req.headers['x-msg91-timestamp'] || req.headers['timestamp'] || Date.now().toString();
+    
     console.log('📥 Webhook received:', JSON.stringify(req.body, null, 2));
     
-    // Extract message data (supports multiple formats)
-    const messageData = req.body;
-    const phoneNumber = messageData.from || messageData.phone || messageData.phoneNumber;
-    const messageText = messageData.text || messageData.message || messageData.body;
+    // Validate webhook signature (if not in demo mode)
+    if (!msg91.validateWebhookSignature(rawBody, signature, timestamp)) {
+      return res.status(401).json({
+        error: 'Invalid webhook signature'
+      });
+    }
     
-    if (!phoneNumber || !messageText) {
+    // Process webhook data using MSG91 integration
+    const messageData = msg91.processIncomingWebhook(req.body);
+    
+    if (!messageData.from || !messageData.message) {
       return res.status(400).json({
         error: 'Missing required fields: phone number and message'
       });
     }
     
     // Clean phone number
-    const cleanPhone = phoneNumber.replace(/[^\d]/g, '');
+    const cleanPhone = messageData.from.replace(/[^\d]/g, '');
     
-    console.log(`📱 Processing message from ${cleanPhone}: "${messageText}"`);
+    console.log(`📱 Processing ${messageData.messageType} message from ${cleanPhone}: "${messageData.message}"`);
     
-    // Process the message with AI
-    const aiResponse = await processIncomingMessage(cleanPhone, messageText);
+    // Handle different message types
+    if (messageData.messageType !== 'text') {
+      // For now, acknowledge non-text messages
+      await sendWhatsAppMessage(cleanPhone, "Thank you for your message. Our team will review it and get back to you soon! 📎");
+      
+      return res.json({
+        success: true,
+        message: 'Non-text message acknowledged',
+        messageType: messageData.messageType
+      });
+    }
+    
+    // Process text message with AI
+    const aiResponse = await processIncomingMessage(cleanPhone, messageData.message);
     
     console.log(`🤖 AI Response: "${aiResponse}"`);
     
@@ -370,6 +398,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
     res.json({
       success: true,
       message: 'Message processed successfully',
+      messageId: messageData.messageId,
       response: aiResponse,
       delivery: deliveryResult
     });
@@ -406,57 +435,8 @@ app.post('/send-message', async (req, res) => {
   }
 });
 
-async function sendWhatsAppMessage(phoneNumber, message) {
-  const authKey = process.env.MSG91_AUTH_KEY;
-  
-  if (!authKey || authKey === 'placeholder-auth-key') {
-    // Demo mode - just log the message
-    console.log(`📤 [DEMO] Would send to ${phoneNumber}: "${message}"`);
-    return {
-      success: true,
-      messageId: `demo_${Date.now()}`,
-      status: 'demo_sent',
-      note: 'Demo mode - add MSG91_AUTH_KEY for real delivery'
-    };
-  }
-  
-  try {
-    const fetch = (await import('node-fetch')).default;
-    
-    const payload = {
-      recipient: [{
-        phone: phoneNumber,
-        message: message
-      }]
-    };
-    
-    const response = await fetch('https://api.msg91.com/api/whatsapp/send', {
-      method: 'POST',
-      headers: {
-        'authkey': authKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(result.message || 'MSG91 API error');
-    }
-    
-    console.log(`📤 Message sent to ${phoneNumber}: "${message}"`);
-    
-    return {
-      success: true,
-      messageId: result.messageId,
-      status: 'sent'
-    };
-    
-  } catch (error) {
-    console.error('❌ MSG91 delivery error:', error);
-    throw error;
-  }
+async function sendWhatsAppMessage(phoneNumber, message, messageType = 'text', options = {}) {
+  return await msg91.sendMessage(phoneNumber, message, messageType, options);
 }
 
 // Admin endpoint to view conversations
@@ -854,6 +834,165 @@ app.get('/admin/token-analytics', (req, res) => {
   });
 });
 
+// MSG91 Integration Management Endpoints
+
+// Test MSG91 connection and configuration
+app.post('/admin/test-msg91-connection', async (req, res) => {
+  try {
+    const configStatus = msg91.getConfigurationStatus();
+    
+    if (configStatus.isDemo) {
+      return res.json({
+        success: false,
+        message: 'MSG91 is in demo mode',
+        configuration: configStatus,
+        instructions: 'Add MSG91_AUTH_KEY to environment variables to enable real WhatsApp messaging'
+      });
+    }
+    
+    // Test account info
+    const accountInfo = await msg91.getAccountInfo();
+    
+    res.json({
+      success: true,
+      message: 'MSG91 connection successful',
+      configuration: configStatus,
+      account: accountInfo,
+      capabilities: [
+        'Send WhatsApp messages',
+        'Receive webhooks',
+        'Template messages',
+        'Media messages',
+        'Delivery tracking'
+      ]
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'MSG91 connection test failed',
+      message: error.message,
+      configuration: msg91.getConfigurationStatus()
+    });
+  }
+});
+
+// Send message with advanced options
+app.post('/admin/send-advanced-message', async (req, res) => {
+  try {
+    const { phone, message, messageType = 'text', template, parameters, mediaUrl } = req.body;
+    
+    if (!phone || (!message && !template)) {
+      return res.status(400).json({
+        error: 'Phone number and (message or template) are required'
+      });
+    }
+    
+    let result;
+    
+    if (template) {
+      // Send template message
+      result = await msg91.sendTemplateMessage(phone, template, parameters || []);
+    } else if (mediaUrl) {
+      // Send media message
+      result = await msg91.sendMediaMessage(phone, mediaUrl, messageType, message);
+    } else {
+      // Send regular message
+      result = await msg91.sendMessage(phone, message, messageType);
+    }
+    
+    res.json({
+      success: true,
+      result,
+      configuration: msg91.getConfigurationStatus()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Advanced message sending failed',
+      message: error.message
+    });
+  }
+});
+
+// Get message delivery status
+app.get('/admin/message-status/:messageId', async (req, res) => {
+  try {
+    const messageId = req.params.messageId;
+    const status = await msg91.getMessageStatus(messageId);
+    
+    res.json({
+      success: true,
+      messageId,
+      status
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Status check failed',
+      message: error.message
+    });
+  }
+});
+
+// Send bulk messages
+app.post('/admin/send-bulk-messages', async (req, res) => {
+  try {
+    const { recipients } = req.body;
+    
+    if (!recipients || !Array.isArray(recipients)) {
+      return res.status(400).json({
+        error: 'Recipients array is required'
+      });
+    }
+    
+    if (recipients.length > 100) {
+      return res.status(400).json({
+        error: 'Maximum 100 recipients per bulk send'
+      });
+    }
+    
+    const results = await msg91.sendBulkMessages(recipients);
+    
+    const summary = {
+      total: results.length,
+      successful: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length
+    };
+    
+    res.json({
+      success: true,
+      summary,
+      results
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Bulk message sending failed',
+      message: error.message
+    });
+  }
+});
+
+// MSG91 webhook logs and analytics
+app.get('/admin/webhook-logs', (req, res) => {
+  // This would connect to your logging system in production
+  res.json({
+    webhookEndpoint: `${req.protocol}://${req.get('host')}/webhook/whatsapp`,
+    configuration: msg91.getConfigurationStatus(),
+    recentWebhooks: 'Connect to logging system for webhook history',
+    setupInstructions: [
+      'Set webhook URL in MSG91 dashboard',
+      'Enable message and delivery report webhooks',
+      'Configure webhook secret for security',
+      'Test with sample message'
+    ]
+  });
+});
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`🚀 WhatsApp Support Automation running on http://localhost:${port}`);
@@ -870,9 +1009,18 @@ app.listen(port, () => {
   console.log(`   GET  /admin/users - View user profiles`);
   console.log(`   GET  /admin/token-analytics - View cost savings`);
   console.log(`   GET  /admin/knowledge-base - View prompt system`);
+  console.log(`   POST /admin/test-msg91-connection - Test WhatsApp API`);
+  console.log(`   GET  /admin/webhook-logs - View webhook status`);
   console.log(`📋 Environment check:`);
   console.log(`   OPENROUTER_API_KEY: ${process.env.OPENROUTER_API_KEY ? '✅ Set' : '❌ Missing'}`);
-  console.log(`   MSG91_AUTH_KEY: ${process.env.MSG91_AUTH_KEY ? '✅ Set' : '❌ Missing (demo mode)'}`);
+  
+  const msg91Status = msg91.getConfigurationStatus();
+  console.log(`   MSG91_AUTH_KEY: ${msg91Status.authKey ? '✅ Set' : '❌ Missing (demo mode)'}`);
+  console.log(`   MSG91_WEBHOOK_SECRET: ${msg91Status.webhookSecret ? '✅ Set' : '❌ Missing'}`);
+  console.log(`📱 WhatsApp Integration:`);
+  console.log(`   Status: ${msg91Status.isDemo ? '⚠️ Demo Mode' : '✅ Production Ready'}`);
+  console.log(`   Webhook URL: ${msg91Status.isDemo ? 'Configure in MSG91 dashboard' : 'Ready'}`);
+  console.log(`   Message delivery: ${msg91Status.isDemo ? 'Simulated' : 'Real WhatsApp'}`);
   console.log(`🧠 AI Features:`);
   console.log(`   ✅ Dynamic prompt selection`);
   console.log(`   ✅ Context-aware responses`);
