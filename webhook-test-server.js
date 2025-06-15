@@ -274,8 +274,8 @@ async function processMessages(value) {
       content: extractMessageContent(message)
     });
 
-    // Generate AI response
-    const aiResponse = simulateAIResponse(extractMessageContent(message));
+    // Generate AI response using real LLM
+    const aiResponse = await generateAIResponse(extractMessageContent(message));
     console.log('🤖 AI Response:', aiResponse);
 
     // Send response back via WhatsApp API
@@ -317,7 +317,80 @@ function extractMessageContent(message) {
   }
 }
 
-function simulateAIResponse(message) {
+async function generateAIResponse(message, context = {}) {
+  const openrouterApiKey = process.env.OPENROUTER_API_KEY;
+  
+  if (!openrouterApiKey) {
+    console.log('⚠️ OPENROUTER_API_KEY not set, using fallback response');
+    return simulateFallbackResponse(message);
+  }
+
+  try {
+    const systemPrompt = buildSystemPrompt(context);
+    
+    const payload = {
+      model: 'anthropic/claude-3-haiku', // Fast and cost-effective for WhatsApp
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message }
+      ],
+      max_tokens: 300, // Keep responses concise for WhatsApp
+      temperature: 0.7
+    };
+
+    console.log('🤖 Calling OpenRouter API...');
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openrouterApiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://whatsapp-support-automation-production.up.railway.app',
+        'X-Title': 'WhatsApp Support Automation'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenRouter API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const aiResponse = result.choices[0]?.message?.content;
+    
+    if (!aiResponse) {
+      throw new Error('Invalid response format from OpenRouter');
+    }
+
+    console.log('✅ OpenRouter API response received');
+    return aiResponse.trim();
+
+  } catch (error) {
+    console.error('❌ OpenRouter API failed:', error.message);
+    return simulateFallbackResponse(message);
+  }
+}
+
+function buildSystemPrompt(context) {
+  return `You are a helpful WhatsApp customer support assistant for an enterprise business.
+
+Guidelines:
+- Be concise and friendly
+- Keep responses under 300 characters when possible for WhatsApp
+- Use simple, clear language
+- If you cannot help with something, politely offer to escalate to a human agent
+- Use emojis sparingly and appropriately
+- Always be professional and helpful
+- Respond in the user's preferred language when possible
+
+Current conversation context:
+- Platform: WhatsApp Business
+- Response format: Text message
+- Keep it conversational and helpful
+
+Please provide a helpful response to the user's message.`;
+}
+
+function simulateFallbackResponse(message) {
   const responses = [
     `Hi! I'd be happy to help you with "${message}". Let me assist you right away! 😊`,
     `Thanks for reaching out! I understand you mentioned "${message}". How can I help you further?`,
