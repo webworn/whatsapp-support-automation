@@ -73,7 +73,7 @@ app.get('/webhooks/whatsapp-business', (req, res) => {
 });
 
 // WhatsApp Business webhook receiver (POST)
-app.post('/webhooks/whatsapp-business', (req, res) => {
+app.post('/webhooks/whatsapp-business', async (req, res) => {
   const signature = req.headers['x-hub-signature-256'];
   const payload = req.body;
 
@@ -94,7 +94,7 @@ app.post('/webhooks/whatsapp-business', (req, res) => {
     }
 
     // Process webhook
-    processWhatsAppWebhook(payload);
+    await processWhatsAppWebhook(payload);
 
     console.log('✅ Webhook processed successfully');
     res.status(200).json({ success: true, message: 'Webhook processed' });
@@ -218,24 +218,26 @@ function validateWhatsAppSignature(payload, signature) {
   );
 }
 
-function processWhatsAppWebhook(payload) {
+async function processWhatsAppWebhook(payload) {
   if (!payload.entry) return;
 
-  payload.entry.forEach(entry => {
-    entry.changes?.forEach(change => {
-      if (change.field === 'messages') {
-        processMessages(change.value);
-      } else if (change.field === 'message_status') {
-        processStatuses(change.value);
+  for (const entry of payload.entry) {
+    if (entry.changes) {
+      for (const change of entry.changes) {
+        if (change.field === 'messages') {
+          await processMessages(change.value);
+        } else if (change.field === 'message_status') {
+          processStatuses(change.value);
+        }
       }
-    });
-  });
+    }
+  }
 }
 
-function processMessages(value) {
+async function processMessages(value) {
   if (!value.messages) return;
 
-  value.messages.forEach(message => {
+  for (const message of value.messages) {
     console.log('📱 Processing message:', {
       id: message.id,
       from: message.from,
@@ -243,13 +245,18 @@ function processMessages(value) {
       content: extractMessageContent(message)
     });
 
-    // Simulate AI response
+    // Generate AI response
     const aiResponse = simulateAIResponse(extractMessageContent(message));
     console.log('🤖 AI Response:', aiResponse);
 
-    // In a real implementation, you would send this back via WhatsApp API
-    console.log('📤 Would send response to:', message.from);
-  });
+    // Send response back via WhatsApp API
+    try {
+      await sendWhatsAppMessage(message.from, aiResponse);
+      console.log('✅ Response sent successfully to:', message.from);
+    } catch (error) {
+      console.error('❌ Failed to send response:', error.message);
+    }
+  }
 }
 
 function processStatuses(value) {
@@ -291,6 +298,47 @@ function simulateAIResponse(message) {
   ];
   
   return responses[Math.floor(Math.random() * responses.length)];
+}
+
+// Send message via WhatsApp Business API
+async function sendWhatsAppMessage(to, message) {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '665397593326012';
+  
+  if (!accessToken) {
+    throw new Error('WHATSAPP_ACCESS_TOKEN not configured');
+  }
+
+  const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
+  
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: to,
+    type: 'text',
+    text: {
+      body: message
+    }
+  };
+
+  console.log('📤 Sending WhatsApp message:', { to, message: message.substring(0, 50) + '...' });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`WhatsApp API error: ${response.status} - ${error}`);
+  }
+
+  const result = await response.json();
+  console.log('✅ WhatsApp API response:', result);
+  return result;
 }
 
 // Payload creators for simulation
