@@ -105,6 +105,35 @@ app.post('/webhooks/whatsapp-business', async (req, res) => {
   }
 });
 
+// Test WhatsApp message sending
+app.post('/webhooks/test-send-message', async (req, res) => {
+  const { to, message } = req.body;
+  
+  if (!to || !message) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Missing required fields: to, message' 
+    });
+  }
+
+  try {
+    console.log('🧪 Testing WhatsApp message sending:', { to, message });
+    const result = await sendWhatsAppMessage(to, message);
+    
+    res.json({
+      success: true,
+      message: 'WhatsApp message sent successfully',
+      result: result
+    });
+  } catch (error) {
+    console.error('❌ Failed to send test message:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Test webhook endpoint
 app.post('/webhooks/test-whatsapp-business', (req, res) => {
   const { phoneNumber, message, messageType } = req.body;
