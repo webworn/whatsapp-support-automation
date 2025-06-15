@@ -1,17 +1,19 @@
-# 🚀 Quick Test Commands
+# ✅ Production Test Commands - LIVE SYSTEM
 
-## 🧪 Local Testing (No WhatsApp Account Required)
+## 🚀 Test Live Production System (WhatsApp AI Automation)
 
-### Start Server
+### ✅ Production Health Check
 ```bash
-npm run start:dev
+# Test live system health
+curl https://whatsapp-support-automation-production.up.railway.app/health
 ```
 
-### Test Basic Webhook
+### 🤖 Test AI Response Generation
 ```bash
-curl -X POST http://localhost:3000/webhooks/test-whatsapp-business \
+# Test webhook with AI processing
+curl -X POST https://whatsapp-support-automation-production.up.railway.app/webhooks/test-whatsapp-business \
   -H "Content-Type: application/json" \
-  -d '{"phoneNumber": "1234567890", "message": "Hello!", "messageType": "text"}'
+  -d '{"phoneNumber": "919664304532", "message": "Hello! I need help with my order."}'
 ```
 
 ### Test Different Scenarios
