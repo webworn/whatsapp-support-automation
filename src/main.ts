@@ -1,29 +1,18 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { WinstonModule } from 'nest-winston';
-import * as compression from 'compression';
-import * as helmet from 'helmet';
 
 import { AppModule } from './app.module';
-import { createWinstonConfig } from './shared/utils/logger.util';
-import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
-import { LoggingInterceptor } from './shared/interceptors/logging.interceptor';
+import { PrismaService } from './shared/database/prisma.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    logger: WinstonModule.createLogger(createWinstonConfig()),
-  });
-
+  const app = await NestFactory.create(AppModule);
+  
   const configService = app.get(ConfigService);
+  const prismaService = app.get(PrismaService);
   const logger = new Logger('Bootstrap');
 
-  // Security middleware
-  app.use(helmet());
-  app.use(compression());
-
-  // Global pipes
+  // Global pipes for validation
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -35,25 +24,8 @@ async function bootstrap() {
     }),
   );
 
-  // Global filters and interceptors
-  app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor());
-
-  // API versioning
-  app.setGlobalPrefix(`api/${configService.get('API_VERSION', 'v1')}`);
-
-  // Swagger documentation
-  if (configService.get('ENABLE_SWAGGER', false)) {
-    const config = new DocumentBuilder()
-      .setTitle('WhatsApp Support Automation API')
-      .setDescription('Enterprise-grade WhatsApp customer support automation')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build();
-    
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('docs', app, document);
-  }
+  // Enable shutdown hooks for Prisma
+  await prismaService.enableShutdownHooks(app);
 
   // CORS configuration
   app.enableCors({
@@ -62,18 +34,22 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Railway uses PORT environment variable
   const port = configService.get('PORT', 3000);
-  await app.listen(port);
-
-  logger.log(`Application is running on: http://localhost:${port}`);
-  logger.log(`Environment: ${configService.get('NODE_ENV')}`);
+  const host = configService.get('NODE_ENV') === 'production' ? '0.0.0.0' : 'localhost';
   
-  if (configService.get('ENABLE_SWAGGER', false)) {
-    logger.log(`Swagger documentation: http://localhost:${port}/docs`);
+  await app.listen(port, host);
+
+  logger.log(`🚀 WhatsApp AI Railway Template is running on: http://${host}:${port}`);
+  logger.log(`📝 Environment: ${configService.get('NODE_ENV', 'development')}`);
+  logger.log(`🔑 Auth endpoints: http://${host}:${port}/api/auth/*`);
+  
+  if (configService.get('NODE_ENV') === 'production') {
+    logger.log(`🌍 Public URL: https://${configService.get('RAILWAY_PUBLIC_DOMAIN') || 'your-app.railway.app'}`);
   }
 }
 
 bootstrap().catch(error => {
-  console.error('Failed to start application:', error);
+  console.error('❌ Failed to start application:', error);
   process.exit(1);
 });

@@ -3,107 +3,165 @@
 
 generator client {
   provider = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// Business owner authentication (single user per deployment)
 model User {
-  id          Int      @id @default(autoincrement())
-  phoneNumber String   @unique @map("phone_number")
-  name        String?
-  language    String   @default("en")
-  isActive    Boolean  @default(true) @map("is_active")
-  metadata    String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid())
+  email                String   @unique
+  passwordHash         String   @map("password_hash")
+  businessName         String   @map("business_name")
+  whatsappPhoneNumber  String?  @map("whatsapp_phone_number")
+  aiModelPreference    String   @default("claude-haiku") @map("ai_model_preference")
+  subscriptionTier     String   @default("starter") @map("subscription_tier")
+  isEmailVerified      Boolean  @default(false) @map("is_email_verified")
+  lastLoginAt          DateTime? @map("last_login_at")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
+  // Relations
   conversations Conversation[]
+  documents     Document[]
+  promptTemplates PromptTemplate[]
+  userSessions  UserSession[]
 
   @@map("users")
 }
 
+// User sessions for JWT management
+model UserSession {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
+
+// Customer conversations (WhatsApp customers)
 model Conversation {
-  id               Int       @id @default(autoincrement())
-  userId           Int       @map("user_id")
-  sessionId        String    @unique @map("session_id")
-  status           String    @default("active") // active, completed, escalated
-  currentFlow      String?   @map("current_flow")
-  currentStep      String?   @map("current_step")
-  language         String    @default("en")
-  escalationReason String?   @map("escalation_reason")
-  resolutionTime   Float?    @map("resolution_time")
-  satisfactionScore Float?   @map("satisfaction_score")
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id") // Business owner
+  customerPhone    String    @map("customer_phone")
+  customerName     String?   @map("customer_name")
+  status           String    @default("active") // active, closed, archived
+  aiEnabled        Boolean   @default(true) @map("ai_enabled")
+  lastMessageAt    DateTime  @default(now()) @map("last_message_at")
   metadata         String?
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
-  completedAt      DateTime? @map("completed_at")
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages Message[]
 
+  @@index([userId])
+  @@index([customerPhone])
+  @@index([status])
+  @@index([lastMessageAt])
   @@map("conversations")
 }
 
+// Message history for conversations
 model Message {
-  id              Int       @id @default(autoincrement())
-  conversationId  Int       @map("conversation_id")
-  msg91MessageId  String?   @unique @map("msg91_message_id")
-  direction       String    // inbound, outbound
-  messageType     String    @default("text") @map("message_type") // text, image, document, etc.
-  content         String
-  senderNumber    String?   @map("sender_number")
-  recipientNumber String?   @map("recipient_number")
-  deliveryStatus  String    @default("pending") @map("delivery_status") // pending, sent, delivered, failed
-  isFromLlm       Boolean   @default(false) @map("is_from_llm")
-  llmModelUsed    String?   @map("llm_model_used")
-  llmCost         Float     @default(0.0) @map("llm_cost")
-  processingTime  Float?    @map("processing_time")
-  metadata        String?
-  createdAt       DateTime  @default(now()) @map("created_at")
-  deliveredAt     DateTime? @map("delivered_at")
+  id               String    @id @default(uuid())
+  conversationId   String    @map("conversation_id")
+  content          String
+  senderType       String    @map("sender_type") // customer, ai, agent
+  whatsappMessageId String?  @unique @map("whatsapp_message_id")
+  messageType      String    @default("text") @map("message_type") // text, image, document, audio
+  aiModelUsed      String?   @map("ai_model_used")
+  processingTimeMs Int?      @map("processing_time_ms")
+  metadata         String?
+  timestamp        DateTime  @default(now())
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
+  @@index([conversationId])
+  @@index([timestamp])
+  @@index([senderType])
   @@map("messages")
 }
 
-model Session {
+// Knowledge base documents (max 50 per user)
+model Document {
   id           String   @id @default(uuid())
-  phoneNumber  String   @map("phone_number")
-  sessionData  String   @map("session_data")
-  lastActivity DateTime @default(now()) @map("last_activity")
-  expiresAt    DateTime @map("expires_at")
+  userId       String   @map("user_id")
+  filename     String
+  originalName String   @map("original_name")
+  fileType     String   @map("file_type") // pdf, txt, doc, docx
+  fileSize     Int      @map("file_size")
+  content      String   // extracted text content
+  status       String   @default("ready") // processing, ready, error
+  category     String?
+  tags         String? // Comma-separated tags
+  uploadDate   DateTime @default(now()) @map("upload_date")
   createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  @@index([phoneNumber])
-  @@index([expiresAt])
-  @@map("sessions")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([fileType])
+  @@map("documents")
 }
 
-model LlmUsage {
-  id           Int      @id @default(autoincrement())
-  phoneNumber  String   @map("phone_number")
-  model        String
-  promptTokens Int      @map("prompt_tokens")
-  outputTokens Int      @map("output_tokens")
-  totalTokens  Int      @map("total_tokens")
-  cost         Float
-  requestTime  Float    @map("request_time")
-  success      Boolean  @default(true)
-  errorMessage String?  @map("error_message")
-  createdAt    DateTime @default(now()) @map("created_at")
+// AI prompt templates
+model PromptTemplate {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  name        String
+  description String?
+  template    String
+  category    String   // industry category
+  variables   String? // JSON string of template variables like ["customerName", "businessName"]
+  isActive    Boolean  @default(false) @map("is_active")
+  isSystem    Boolean  @default(false) @map("is_system") // built-in templates
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@index([phoneNumber])
-  @@index([createdAt])
-  @@map("llm_usage")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([isActive])
+  @@map("prompt_templates")
 }
 
+// Simple analytics tracking (not for billing)
+model AnalyticsSummary {
+  id                   String   @id @default(uuid())
+  userId               String   @map("user_id")
+  date                 DateTime
+  totalMessages        Int      @default(0) @map("total_messages")
+  aiResponses          Int      @default(0) @map("ai_responses")
+  manualResponses      Int      @default(0) @map("manual_responses")
+  activeConversations  Int      @default(0) @map("active_conversations")
+  avgResponseTimeMs    Int      @default(0) @map("avg_response_time_ms")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, date])
+  @@map("analytics_summary")
+}
+
+// Keep existing webhook logs for debugging
 model WebhookLog {
-  id        Int      @id @default(autoincrement())
-  source    String   // msg91, manual, etc.
+  id        String   @id @default(uuid())
+  source    String   // whatsapp, manual, etc.
   payload   String
   signature String?
   isValid   Boolean  @map("is_valid")

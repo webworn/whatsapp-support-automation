@@ -1,22 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ConfigModule } from '@nestjs/config';
 import { WebhookController } from './webhook.controller';
 import { WebhookService } from './webhook.service';
 import { ConversationModule } from '../conversation/conversation.module';
-import { QueueModule } from '../../shared/queue/queue.module';
+import { PrismaModule } from '../../shared/database/prisma.module';
 
 @Module({
-  imports: [
-    ConversationModule,
-    QueueModule,
-    ThrottlerModule.forRoot([
-      {
-        name: 'webhook',
-        ttl: 60000,
-        limit: 100,
-      },
-    ]),
-  ],
+  imports: [ConfigModule, PrismaModule, ConversationModule],
   controllers: [WebhookController],
   providers: [WebhookService],
   exports: [WebhookService],

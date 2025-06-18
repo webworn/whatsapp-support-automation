@@ -23,5 +23,6 @@
       "@/modules/*": ["src/modules/*"],
       "@/shared/*": ["src/shared/*"]
     }
-  }
+  },
+  "exclude": ["frontend", "node_modules", "dist", "test", "coverage", "*.spec.ts"]
 }

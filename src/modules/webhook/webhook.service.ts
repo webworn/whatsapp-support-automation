@@ -1,499 +1,310 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { ConversationService } from '../conversation/conversation.service';
-import {
-  WebhookPayloadDto,
-  WebhookStatsDto,
-  RawWebhookData,
-  WebhookSource,
-  WebhookType,
-  MSG91MessageDto,
-  MSG91DeliveryDto,
-  MSG91ReadDto,
-  WhatsAppBusinessWebhookDto,
-  WhatsAppBusinessMessageDto,
+import { MessageService } from '../conversation/message.service';
+import { 
+  WhatsAppWebhookDto, 
+  WhatsAppMessageDto,
+  WhatsAppStatusDto,
+  ProcessedMessageDto 
 } from './dto/webhook.dto';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
 
   constructor(
-    private readonly prismaService: PrismaService,
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
     private readonly conversationService: ConversationService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly messageService: MessageService,
   ) {}
 
-  async processTestWebhook(
-    payload: WebhookPayloadDto,
-    rawData: RawWebhookData,
-  ): Promise<{ webhookId: string }> {
-    const webhookLog = await this.logWebhook(WebhookSource.TEST, rawData, true);
+  async verifyWebhook(mode: string, token: string, challenge: string): Promise<string> {
+    const verifyToken = this.configService.get<string>('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
+    
+    if (mode === 'subscribe' && token === verifyToken) {
+      this.logger.log('Webhook verified successfully');
+      return challenge;
+    } else {
+      this.logger.error('Webhook verification failed', { mode, token });
+      throw new BadRequestException('Webhook verification failed');
+    }
+  }
+
+  async validateSignature(payload: string, signature: string): Promise<boolean> {
+    const webhookSecret = this.configService.get<string>('WHATSAPP_WEBHOOK_SECRET');
+    
+    if (!webhookSecret) {
+      this.logger.warn('No webhook secret configured, skipping signature validation');
+      return true; // Allow in development
+    }
+
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(payload, 'utf8')
+      .digest('hex');
+
+    const providedSignature = signature.replace('sha256=', '');
+    
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(expectedSignature, 'hex'),
+      Buffer.from(providedSignature, 'hex')
+    );
+
+    if (!isValid) {
+      this.logger.error('Invalid webhook signature');
+    }
+
+    return isValid;
+  }
+
+  async processWebhook(webhookData: WhatsAppWebhookDto, rawPayload: string): Promise<ProcessedMessageDto[]> {
+    const processedMessages: ProcessedMessageDto[] = [];
+
+    // Log webhook for debugging
+    await this.logWebhook('whatsapp', rawPayload, true, true);
 
     try {
-      switch (payload.type) {
-        case WebhookType.MESSAGE:
-          await this.processTestMessage(payload.data);
-          break;
-        case WebhookType.DELIVERY:
-          await this.processTestDelivery(payload.data);
-          break;
-        case WebhookType.READ:
-          await this.processTestRead(payload.data);
-          break;
-        default:
-          this.logger.warn(`Unknown test webhook type: ${payload.type}`);
+      for (const entry of webhookData.entry) {
+        for (const change of entry.changes) {
+          if (change.field === 'messages') {
+            const { messages, statuses, contacts } = change.value;
+
+            // Process incoming messages
+            if (messages) {
+              for (const message of messages) {
+                const processed = await this.processIncomingMessage(message, contacts);
+                if (processed) {
+                  processedMessages.push(processed);
+                }
+              }
+            }
+
+            // Process message status updates
+            if (statuses) {
+              await this.processMessageStatuses(statuses);
+            }
+          }
+        }
       }
 
-      // Update webhook log as processed
-      await this.updateWebhookLog(webhookLog.id, true);
+      this.logger.log(`Processed ${processedMessages.length} messages from webhook`);
+      return processedMessages;
 
-      this.logger.log(`Processed test webhook: ${payload.type}`);
-
-      return { webhookId: webhookLog.id.toString() };
     } catch (error) {
-      // Update webhook log with error
-      await this.updateWebhookLog(webhookLog.id, false, error.message);
+      this.logger.error('Error processing webhook', error);
+      await this.logWebhook('whatsapp', rawPayload, true, false, error.message);
       throw error;
     }
   }
 
-  private async processTestMessage(data: MSG91MessageDto): Promise<void> {
-    this.logger.log(`Processing test message from ${data.from}`);
-
-    // Use the conversation service to process the message
-    await this.conversationService.processIncomingMessage({
-      phoneNumber: data.from,
-      message: data.text,
-      messageType: data.type || 'text',
-      msg91MessageId: data.messageId,
-      timestamp: data.timestamp,
-      metadata: {
-        source: 'test_webhook',
-        originalData: data,
-      },
-    });
-
-    // Emit test event
-    this.eventEmitter.emit('webhook.test.message', {
-      from: data.from,
-      message: data.text,
-      messageId: data.messageId,
-      timestamp: new Date(),
-    });
-  }
-
-  private async processTestDelivery(data: MSG91DeliveryDto): Promise<void> {
-    this.logger.log(`Processing test delivery status: ${data.status} for ${data.messageId}`);
-
-    // Update message delivery status
-    const updated = await this.conversationService.updateMessageDeliveryStatus(
-      data.messageId,
-      data.status,
-    );
-
-    if (!updated) {
-      this.logger.warn(`Message not found for test delivery status: ${data.messageId}`);
-    }
-
-    // Emit test event
-    this.eventEmitter.emit('webhook.test.delivery', {
-      messageId: data.messageId,
-      status: data.status,
-      phoneNumber: data.phoneNumber,
-      timestamp: new Date(),
-    });
-  }
-
-  private async processTestRead(data: MSG91ReadDto): Promise<void> {
-    this.logger.log(`Processing test read status for ${data.messageId}`);
-
-    // Update message status to read
-    const updated = await this.conversationService.updateMessageDeliveryStatus(
-      data.messageId,
-      'read',
-    );
-
-    if (!updated) {
-      this.logger.warn(`Message not found for test read status: ${data.messageId}`);
-    }
-
-    // Emit test event
-    this.eventEmitter.emit('webhook.test.read', {
-      messageId: data.messageId,
-      phoneNumber: data.phoneNumber,
-      timestamp: new Date(),
-    });
-  }
-
-  async logWebhook(
-    source: WebhookSource,
-    rawData: RawWebhookData,
-    isValid: boolean,
-    error?: string,
-  ): Promise<any> {
+  private async processIncomingMessage(
+    message: WhatsAppMessageDto, 
+    contacts?: Array<{ profile: { name: string }; wa_id: string }>
+  ): Promise<ProcessedMessageDto | null> {
     try {
-      return await this.prismaService.webhookLog.create({
+      const customerPhone = message.from;
+      const customerName = contacts?.find(c => c.wa_id === customerPhone)?.profile?.name;
+
+      // Get message content based on type
+      const { content, messageType } = this.extractMessageContent(message);
+
+      if (!content) {
+        this.logger.warn(`Unsupported message type: ${message.type}`);
+        return null;
+      }
+
+      // For now, we'll create a demo user if none exists (in production, this would be based on phone number configuration)
+      const demoUserId = await this.getOrCreateDemoUser();
+
+      // Find or create conversation
+      let conversation = await this.conversationService.findConversationByPhone(demoUserId, customerPhone);
+      
+      if (!conversation) {
+        conversation = await this.conversationService.createConversation(demoUserId, {
+          customerPhone,
+          customerName,
+          aiEnabled: true,
+        });
+      }
+
+      // Create message record
+      const messageRecord = await this.messageService.createMessage(demoUserId, {
+        conversationId: conversation.id,
+        content,
+        senderType: 'customer',
+        messageType: messageType as 'text' | 'image' | 'document' | 'audio',
+        whatsappMessageId: message.id,
+      });
+
+      this.logger.log(`Message processed: ${message.id} from ${customerPhone}`);
+
+      return {
+        id: messageRecord.id,
+        conversationId: conversation.id,
+        from: customerPhone,
+        content,
+        messageType,
+        timestamp: new Date(parseInt(message.timestamp) * 1000),
+        whatsappMessageId: message.id,
+        customerName,
+      };
+
+    } catch (error) {
+      this.logger.error(`Error processing message ${message.id}`, error);
+      return null;
+    }
+  }
+
+  private extractMessageContent(message: WhatsAppMessageDto): { content: string; messageType: string } {
+    switch (message.type) {
+      case 'text':
+        return {
+          content: message.text?.body || '',
+          messageType: 'text',
+        };
+
+      case 'image':
+        return {
+          content: message.image?.caption || '[Image]',
+          messageType: 'image',
+        };
+
+      case 'document':
+        return {
+          content: message.document?.caption || `[Document: ${message.document?.filename || 'Unknown'}]`,
+          messageType: 'document',
+        };
+
+      case 'audio':
+        return {
+          content: '[Audio Message]',
+          messageType: 'audio',
+        };
+
+      case 'button':
+        return {
+          content: message.button?.text || message.button?.payload || '[Button Response]',
+          messageType: 'text',
+        };
+
+      case 'interactive':
+        const interactive = message.interactive;
+        if (interactive?.button_reply) {
+          return {
+            content: interactive.button_reply.title,
+            messageType: 'text',
+          };
+        }
+        if (interactive?.list_reply) {
+          return {
+            content: interactive.list_reply.title,
+            messageType: 'text',
+          };
+        }
+        return {
+          content: '[Interactive Message]',
+          messageType: 'text',
+        };
+
+      default:
+        return {
+          content: `[Unsupported message type: ${message.type}]`,
+          messageType: 'text',
+        };
+    }
+  }
+
+  private async processMessageStatuses(statuses: WhatsAppStatusDto[]): Promise<void> {
+    for (const status of statuses) {
+      // Log status updates for monitoring
+      this.logger.log(`Message ${status.id} status: ${status.status} for ${status.recipient_id}`);
+      
+      // Here you could update message delivery status in database
+      // For now, we'll just log it
+    }
+  }
+
+  private async getOrCreateDemoUser(): Promise<string> {
+    // In production, this would map WhatsApp phone numbers to specific users
+    // For demo, we'll create or get a default user
+    
+    let user = await this.prisma.user.findFirst({
+      where: { email: 'demo@whatsapp-ai.com' },
+    });
+
+    if (!user) {
+      const bcrypt = require('bcryptjs');
+      const passwordHash = await bcrypt.hash('demo123456', 12);
+      
+      user = await this.prisma.user.create({
+        data: {
+          email: 'demo@whatsapp-ai.com',
+          passwordHash,
+          businessName: 'Demo Business (WhatsApp)',
+          whatsappPhoneNumber: '+1234567890',
+          isEmailVerified: true,
+        },
+      });
+
+      this.logger.log('Created demo user for WhatsApp webhook testing');
+    }
+
+    return user.id;
+  }
+
+  private async logWebhook(
+    source: string, 
+    payload: string, 
+    isValid: boolean, 
+    processed: boolean,
+    error?: string
+  ): Promise<void> {
+    try {
+      await this.prisma.webhookLog.create({
         data: {
           source,
-          payload: rawData.body,
-          signature: rawData.headers['x-signature'] || rawData.headers['X-MSG91-Signature'] || '',
+          payload: payload.length > 10000 ? payload.substring(0, 10000) + '...' : payload,
           isValid,
-          processed: false,
+          processed,
           error,
         },
       });
     } catch (logError) {
       this.logger.error('Failed to log webhook', logError);
-      // Return a mock webhook log if database logging fails
-      return { id: Date.now() };
     }
   }
 
-  async updateWebhookLog(webhookId: number, processed: boolean, error?: string): Promise<void> {
-    try {
-      await this.prismaService.webhookLog.update({
-        where: { id: webhookId },
-        data: {
-          processed,
-          error,
-          isValid: !error,
-        },
-      });
-    } catch (updateError) {
-      this.logger.error(`Failed to update webhook log ${webhookId}`, updateError);
-    }
+  async getWebhookLogs(limit: number = 50) {
+    return this.prisma.webhookLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
   }
 
-  async getWebhookStats(days: number = 30): Promise<WebhookStatsDto> {
-    try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-
-      const webhooks = await this.prismaService.webhookLog.findMany({
+  async getWebhookStats() {
+    const [total, processed, failed, recent] = await Promise.all([
+      this.prisma.webhookLog.count(),
+      this.prisma.webhookLog.count({ where: { processed: true } }),
+      this.prisma.webhookLog.count({ where: { processed: false } }),
+      this.prisma.webhookLog.count({
         where: {
-          createdAt: {
-            gte: startDate,
-          },
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      });
-
-      const totalReceived = webhooks.length;
-      const successfullyProcessed = webhooks.filter(w => w.processed && w.isValid).length;
-      const failed = webhooks.filter(w => !w.processed || !w.isValid).length;
-
-      // Calculate average processing time (if we had that data)
-      const averageProcessingTime = 0; // Would need to track this
-
-      // Group by source
-      const bySource: Record<string, number> = {};
-      const byType: Record<string, number> = {};
-
-      for (const webhook of webhooks) {
-        bySource[webhook.source] = (bySource[webhook.source] || 0) + 1;
-        
-        // Extract type from payload if available
-        const type = (webhook.payload as any)?.type || 'unknown';
-        byType[type] = (byType[type] || 0) + 1;
-      }
-
-      // Get recent errors
-      const recentErrors = webhooks
-        .filter(w => w.error)
-        .slice(0, 10)
-        .map(w => ({
-          timestamp: w.createdAt,
-          error: w.error!,
-          source: w.source,
-          type: (w.payload as any)?.type || 'unknown',
-        }));
-
-      return {
-        totalReceived,
-        successfullyProcessed,
-        failed,
-        averageProcessingTime,
-        bySource,
-        byType,
-        recentErrors,
-      };
-    } catch (error) {
-      this.logger.error('Failed to get webhook stats', error);
-      return {
-        totalReceived: 0,
-        successfullyProcessed: 0,
-        failed: 0,
-        averageProcessingTime: 0,
-        bySource: {},
-        byType: {},
-        recentErrors: [],
-      };
-    }
-  }
-
-  async getRecentActivity(limit: number = 10): Promise<any> {
-    try {
-      const recentWebhooks = await this.prismaService.webhookLog.findMany({
-        orderBy: {
-          createdAt: 'desc',
-        },
-        take: limit,
-        select: {
-          id: true,
-          source: true,
-          isValid: true,
-          processed: true,
-          error: true,
-          createdAt: true,
-          payload: true,
-        },
-      });
-
-      return recentWebhooks.map(webhook => ({
-        id: webhook.id,
-        source: webhook.source,
-        type: (webhook.payload as any)?.type || 'unknown',
-        status: webhook.processed && webhook.isValid ? 'success' : 'failed',
-        error: webhook.error,
-        timestamp: webhook.createdAt,
-      }));
-    } catch (error) {
-      this.logger.error('Failed to get recent webhook activity', error);
-      return [];
-    }
-  }
-
-  async cleanupOldWebhookLogs(daysToKeep: number = 30): Promise<number> {
-    try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-
-      const result = await this.prismaService.webhookLog.deleteMany({
-        where: {
-          createdAt: {
-            lt: cutoffDate,
-          },
-          processed: true, // Only delete processed webhooks
-        },
-      });
-
-      this.logger.log(`Cleaned up ${result.count} old webhook logs`);
-      return result.count;
-    } catch (error) {
-      this.logger.error('Failed to cleanup old webhook logs', error);
-      return 0;
-    }
-  }
-
-  async retryFailedWebhooks(limit: number = 50): Promise<number> {
-    try {
-      const failedWebhooks = await this.prismaService.webhookLog.findMany({
-        where: {
-          OR: [
-            { processed: false },
-            { isValid: false },
-          ],
           createdAt: {
             gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
           },
         },
-        take: limit,
-        orderBy: {
-          createdAt: 'desc',
-        },
-      });
+      }),
+    ]);
 
-      let retryCount = 0;
-
-      for (const webhook of failedWebhooks) {
-        try {
-          // Emit retry event for manual handling
-          this.eventEmitter.emit('webhook.retry', {
-            webhookId: webhook.id,
-            source: webhook.source,
-            payload: webhook.payload,
-            originalError: webhook.error,
-          });
-
-          retryCount++;
-        } catch (retryError) {
-          this.logger.error(`Failed to retry webhook ${webhook.id}`, retryError);
-        }
-      }
-
-      this.logger.log(`Initiated retry for ${retryCount} failed webhooks`);
-      return retryCount;
-    } catch (error) {
-      this.logger.error('Failed to retry failed webhooks', error);
-      return 0;
-    }
-  }
-
-  async processWhatsAppBusinessWebhook(
-    payload: WhatsAppBusinessWebhookDto,
-    rawData: RawWebhookData,
-  ): Promise<{ webhookId: string }> {
-    const webhookLog = await this.logWebhook(WebhookSource.WHATSAPP_BUSINESS, rawData, true);
-
-    try {
-      // Process each entry in the webhook
-      for (const entry of payload.entry) {
-        for (const change of entry.changes) {
-          if (change.field === 'messages') {
-            await this.processWhatsAppBusinessMessages(change.value);
-          } else if (change.field === 'message_status') {
-            await this.processWhatsAppBusinessStatuses(change.value);
-          }
-        }
-      }
-
-      // Update webhook log as processed
-      await this.updateWebhookLog(webhookLog.id, true);
-
-      this.logger.log('Processed WhatsApp Business webhook successfully');
-
-      return { webhookId: webhookLog.id.toString() };
-    } catch (error) {
-      // Update webhook log with error
-      await this.updateWebhookLog(webhookLog.id, false, error.message);
-      throw error;
-    }
-  }
-
-  private async processWhatsAppBusinessMessages(value: any): Promise<void> {
-    if (!value.messages || !Array.isArray(value.messages)) {
-      return;
-    }
-
-    for (const message of value.messages) {
-      try {
-        await this.processWhatsAppBusinessMessage(message, value);
-      } catch (error) {
-        this.logger.error('Failed to process WhatsApp Business message', {
-          error: error.message,
-          messageId: message.id,
-          from: message.from,
-        });
-      }
-    }
-  }
-
-  private async processWhatsAppBusinessMessage(
-    message: WhatsAppBusinessMessageDto,
-    value: any,
-  ): Promise<void> {
-    this.logger.log(`Processing WhatsApp Business message from ${message.from}`, {
-      messageId: message.id,
-      type: message.type,
-    });
-
-    // Extract message content based on type
-    let messageContent = '';
-    let messageType = message.type;
-
-    switch (message.type) {
-      case 'text':
-        messageContent = message.text?.body || '';
-        break;
-      case 'interactive':
-        if (message.interactive?.button_reply) {
-          messageContent = message.interactive.button_reply.title;
-          messageType = 'button_reply';
-        } else if (message.interactive?.list_reply) {
-          messageContent = message.interactive.list_reply.title;
-          messageType = 'list_reply';
-        }
-        break;
-      case 'image':
-        messageContent = message.image?.caption || '[Image message]';
-        break;
-      case 'document':
-        messageContent = message.document?.caption || message.document?.filename || '[Document message]';
-        break;
-      case 'audio':
-        messageContent = '[Audio message]';
-        break;
-      case 'video':
-        messageContent = message.video?.caption || '[Video message]';
-        break;
-      default:
-        messageContent = `[${message.type} message]`;
-    }
-
-    // Get contact name if available
-    const contact = value.contacts?.find((c: any) => c.wa_id === message.from);
-    const contactName = contact?.profile?.name;
-
-    // Use the conversation service to process the message
-    await this.conversationService.processIncomingMessage({
-      phoneNumber: message.from,
-      message: messageContent,
-      messageType: messageType as any,
-      msg91MessageId: message.id, // Use WhatsApp message ID
-      timestamp: message.timestamp,
-      metadata: {
-        source: 'whatsapp_business',
-        contactName,
-        originalMessage: message,
-        phoneNumberId: value.metadata?.phone_number_id,
-        displayPhoneNumber: value.metadata?.display_phone_number,
-      },
-    });
-
-    // Emit WhatsApp Business event
-    this.eventEmitter.emit('webhook.whatsapp_business.message', {
-      from: message.from,
-      message: messageContent,
-      messageId: message.id,
-      messageType: messageType,
-      contactName,
-      timestamp: new Date(parseInt(message.timestamp) * 1000),
-    });
-  }
-
-  private async processWhatsAppBusinessStatuses(value: any): Promise<void> {
-    if (!value.statuses || !Array.isArray(value.statuses)) {
-      return;
-    }
-
-    for (const status of value.statuses) {
-      try {
-        await this.processWhatsAppBusinessStatus(status);
-      } catch (error) {
-        this.logger.error('Failed to process WhatsApp Business status', {
-          error: error.message,
-          messageId: status.id,
-          status: status.status,
-        });
-      }
-    }
-  }
-
-  private async processWhatsAppBusinessStatus(status: any): Promise<void> {
-    this.logger.log(`Processing WhatsApp Business status: ${status.status} for ${status.id}`);
-
-    // Update message delivery status
-    const updated = await this.conversationService.updateMessageDeliveryStatus(
-      status.id,
-      status.status,
-    );
-
-    if (!updated) {
-      this.logger.warn(`Message not found for WhatsApp Business status: ${status.id}`);
-    }
-
-    // Emit status event
-    this.eventEmitter.emit('webhook.whatsapp_business.status', {
-      messageId: status.id,
-      status: status.status,
-      recipientId: status.recipient_id,
-      timestamp: new Date(parseInt(status.timestamp) * 1000),
-      conversation: status.conversation,
-      pricing: status.pricing,
-    });
+    return {
+      total,
+      processed,
+      failed,
+      recent,
+      successRate: total > 0 ? Math.round((processed / total) * 100) : 0,
+    };
   }
 }

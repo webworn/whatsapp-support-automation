@@ -13,58 +13,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           url: configService.get<string>('DATABASE_URL'),
         },
       },
-      log: [
-        {
-          emit: 'event',
-          level: 'query',
-        },
-        {
-          emit: 'event',
-          level: 'error',
-        },
-        {
-          emit: 'event',
-          level: 'warn',
-        },
-        {
-          emit: 'event',
-          level: 'info',
-        },
-      ],
-    });
-
-    // Log queries in development
-    if (configService.get('NODE_ENV') === 'development') {
-      this.$on('query', (e) => {
-        this.logger.debug(`Query: ${e.query}`, {
-          params: e.params,
-          duration: `${e.duration}ms`,
-        });
-      });
-    }
-
-    // Log errors
-    this.$on('error', (e) => {
-      this.logger.error('Database error', {
-        message: e.message,
-        target: e.target,
-      });
-    });
-
-    // Log warnings
-    this.$on('warn', (e) => {
-      this.logger.warn('Database warning', {
-        message: e.message,
-        target: e.target,
-      });
-    });
-
-    // Log info
-    this.$on('info', (e) => {
-      this.logger.log('Database info', {
-        message: e.message,
-        target: e.target,
-      });
+      log: ['error', 'warn'],
     });
   }
 
@@ -73,8 +22,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$connect();
       this.logger.log('Database connected successfully');
     } catch (error) {
-      this.logger.error('Failed to connect to database', error);
-      throw error;
+      this.logger.error('Failed to connect to database - running in degraded mode', error);
+      // Don't throw error to allow application to start in degraded mode
+      // This allows the frontend to work even if database is not available
     }
   }
 
@@ -88,7 +38,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async enableShutdownHooks(app: any) {
-    this.$on('beforeExit', async () => {
+    // Enable graceful shutdown hooks
+    process.on('SIGINT', async () => {
+      await app.close();
+    });
+    process.on('SIGTERM', async () => {
       await app.close();
     });
   }

@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
+import { ConversationController } from './conversation.controller';
 import { ConversationService } from './conversation.service';
-import { ConversationRepository } from './conversation.repository';
-import { LlmModule } from '../llm/llm.module';
-import { SessionModule } from '../../shared/session/session.module';
+import { MessageService } from './message.service';
+import { PrismaModule } from '../../shared/database/prisma.module';
 
 @Module({
-  imports: [LlmModule, SessionModule],
-  providers: [ConversationService, ConversationRepository],
-  exports: [ConversationService],
+  imports: [PrismaModule],
+  controllers: [ConversationController],
+  providers: [ConversationService, MessageService],
+  exports: [ConversationService, MessageService],
 })
 export class ConversationModule {}
