@@ -73,4 +73,107 @@ export class AppController {
       };
     }
   }
+
+  @Get('db-schema')
+  @Public()
+  async checkDatabaseSchema() {
+    try {
+      // Check if tables exist
+      const tables = await this.prismaService.$queryRaw`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        ORDER BY table_name;
+      `;
+
+      // Check if users table exists and get its structure
+      let userTableStructure = null;
+      try {
+        userTableStructure = await this.prismaService.$queryRaw`
+          SELECT column_name, data_type, is_nullable, column_default
+          FROM information_schema.columns 
+          WHERE table_name = 'users' 
+          ORDER BY ordinal_position;
+        `;
+      } catch (error) {
+        userTableStructure = { error: 'Users table does not exist' };
+      }
+
+      // Test if we can query users table
+      let userCount = 0;
+      try {
+        const countResult = await this.prismaService.$queryRaw`SELECT COUNT(*) as count FROM users`;
+        userCount = (countResult as any)[0]?.count || 0;
+      } catch (error) {
+        userCount = `Error: ${error.message}`;
+      }
+
+      return {
+        status: 'success',
+        message: 'Database schema check completed',
+        data: {
+          tables,
+          userTableStructure,
+          userCount,
+          databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: 'Database schema check failed',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  @Get('db-migrate')
+  @Public()
+  async runMigrations() {
+    try {
+      // Use Prisma's db push to create tables if they don't exist
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+
+      if (process.env.NODE_ENV === 'production') {
+        // In production, run migrate deploy
+        const result = await execAsync('npx prisma migrate deploy', { 
+          timeout: 30000,
+          env: { ...process.env }
+        });
+        
+        return {
+          status: 'success',
+          message: 'Database migrations completed',
+          output: result.stdout,
+          error: result.stderr,
+          timestamp: new Date().toISOString(),
+        };
+      } else {
+        // In development, use db push
+        const result = await execAsync('npx prisma db push --force-reset', { 
+          timeout: 30000,
+          env: { ...process.env }
+        });
+        
+        return {
+          status: 'success',
+          message: 'Database schema pushed successfully',
+          output: result.stdout,
+          error: result.stderr,
+          timestamp: new Date().toISOString(),
+        };
+      }
+    } catch (error) {
+      return {
+        status: 'error',
+        message: 'Database migration failed',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
 }

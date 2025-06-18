@@ -29,7 +29,24 @@ export class AuthController {
   @Public()
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+    try {
+      const result = await this.authService.register(registerDto);
+      return {
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          message: error.message,
+          code: error.code || 'REGISTRATION_FAILED',
+          details: error.details || 'An error occurred during registration',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
 
   @Public()
@@ -40,7 +57,24 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    return this.authService.login(loginDto, ipAddress, userAgent);
+    try {
+      const result = await this.authService.login(loginDto, ipAddress, userAgent);
+      return {
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          message: error.message,
+          code: error.code || 'LOGIN_FAILED',
+          details: error.details || 'An error occurred during login',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
 
   @Post('logout')
