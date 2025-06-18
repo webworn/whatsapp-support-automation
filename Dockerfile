@@ -1,5 +1,5 @@
 # Multi-stage build for Railway deployment
-FROM node:18-alpine AS base
+FROM node:18-alpine AS builder
 
 # Install OpenSSL and other necessary packages for Railway
 RUN apk add --no-cache \
@@ -15,11 +15,17 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install ALL dependencies (including dev dependencies for building)
+RUN npm ci && npm cache clean --force
+
+# Copy source code
+COPY . .
 
 # Generate Prisma client
 RUN npx prisma generate
+
+# Build the application
+RUN npm run build
 
 # Production stage
 FROM node:18-alpine AS production
@@ -29,19 +35,23 @@ RUN apk add --no-cache \
     openssl \
     openssl-dev \
     libc6-compat \
-    ca-certificates
+    ca-certificates \
+    curl
 
 WORKDIR /app
 
-# Copy dependencies and generated Prisma client
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/prisma ./prisma
+# Copy package files for production install
+COPY package*.json ./
+COPY prisma ./prisma/
 
-# Copy source code
-COPY . .
+# Install only production dependencies
+RUN npm ci --only=production && npm cache clean --force
 
-# Build the application
-RUN npm run build
+# Generate Prisma client for production
+RUN npx prisma generate
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ./dist
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs
