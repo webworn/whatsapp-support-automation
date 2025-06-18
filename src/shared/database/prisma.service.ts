@@ -18,13 +18,29 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    try {
-      await this.$connect();
-      this.logger.log('Database connected successfully');
-    } catch (error) {
-      this.logger.error('Failed to connect to database - running in degraded mode', error);
-      // Don't throw error to allow application to start in degraded mode
-      // This allows the frontend to work even if database is not available
+    // Use retry logic for initial connection
+    await this.connectWithRetry();
+  }
+
+  private async connectWithRetry(maxAttempts = 5, delayMs = 2000) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await this.$connect();
+        this.logger.log(`Database connected successfully on attempt ${attempt}`);
+        return;
+      } catch (error) {
+        this.logger.warn(`Database connection attempt ${attempt}/${maxAttempts} failed: ${error.message}`);
+        
+        if (attempt === maxAttempts) {
+          this.logger.error('Failed to connect to database after all attempts - running in degraded mode');
+          // Don't throw error to allow application to start in degraded mode
+          return;
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        delayMs *= 1.5; // Exponential backoff
+      }
     }
   }
 
@@ -49,9 +65,17 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async healthCheck(): Promise<boolean> {
     try {
-      await this.$queryRaw`SELECT 1`;
+      // Quick connection test with timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database health check timeout')), 5000)
+      );
+      
+      const queryPromise = this.$queryRaw`SELECT 1`;
+      
+      await Promise.race([queryPromise, timeoutPromise]);
       return true;
-    } catch {
+    } catch (error) {
+      this.logger.warn(`Database health check failed: ${error.message}`);
       return false;
     }
   }
