@@ -17,48 +17,64 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
-    // Create user
-    const user = await this.userService.createUser(registerDto);
+    try {
+      // Ensure database connection
+      await this.prisma.ensureConnected();
+      
+      // Create user
+      const user = await this.userService.createUser(registerDto);
 
-    // Create initial session
-    const { accessToken, sessionId } = await this.generateTokens(user);
+      // Create initial session
+      const { accessToken, sessionId } = await this.generateTokens(user);
 
-    // Log registration
-    this.logger.log(`New user registered: ${user.email}`);
+      // Log registration
+      this.logger.log(`New user registered: ${user.email}`);
 
-    return {
-      accessToken,
-      user: this.userService.sanitizeUser(user),
-    };
+      return {
+        accessToken,
+        user: this.userService.sanitizeUser(user),
+      };
+    } catch (error) {
+      this.logger.error('Registration failed', error);
+      throw error;
+    }
   }
 
   async login(loginDto: LoginDto, ipAddress?: string, userAgent?: string): Promise<AuthResponseDto> {
-    const { email, password } = loginDto;
+    try {
+      const { email, password } = loginDto;
 
-    // Find user
-    const user = await this.userService.findByEmail(email);
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      // Ensure database connection
+      await this.prisma.ensureConnected();
+
+      // Find user
+      const user = await this.userService.findByEmail(email);
+      if (!user) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      // Validate password
+      const isPasswordValid = await this.userService.validatePassword(password, user.passwordHash);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      // Generate tokens and create session
+      const { accessToken, sessionId } = await this.generateTokens(user, ipAddress, userAgent);
+
+      // Update last login
+      await this.userService.updateLastLogin(user.id);
+
+      this.logger.log(`User logged in: ${user.email}`);
+
+      return {
+        accessToken,
+        user: this.userService.sanitizeUser(user),
+      };
+    } catch (error) {
+      this.logger.error('Login failed', error);
+      throw error;
     }
-
-    // Validate password
-    const isPasswordValid = await this.userService.validatePassword(password, user.passwordHash);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Generate tokens and create session
-    const { accessToken, sessionId } = await this.generateTokens(user, ipAddress, userAgent);
-
-    // Update last login
-    await this.userService.updateLastLogin(user.id);
-
-    this.logger.log(`User logged in: ${user.email}`);
-
-    return {
-      accessToken,
-      user: this.userService.sanitizeUser(user),
-    };
   }
 
   async logout(sessionId: string): Promise<void> {

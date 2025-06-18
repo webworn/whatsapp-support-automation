@@ -9,33 +9,40 @@ export class UserService {
   constructor(private prisma: PrismaService) {}
 
   async createUser(registerDto: RegisterDto): Promise<User> {
-    const { email, password, businessName, whatsappPhoneNumber } = registerDto;
+    try {
+      const { email, password, businessName, whatsappPhoneNumber } = registerDto;
 
-    // Check if user already exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
+      // Check if user already exists
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email },
+      });
 
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+      if (existingUser) {
+        throw new ConflictException('User with this email already exists');
+      }
+
+      // Hash password
+      const saltRounds = 12;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+
+      // Create user
+      const user = await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          businessName,
+          whatsappPhoneNumber,
+          isEmailVerified: true, // Auto-verify for simplicity
+        },
+      });
+
+      return user;
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      throw new Error(`Failed to create user: ${error.message}`);
     }
-
-    // Hash password
-    const saltRounds = 12;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    // Create user
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        businessName,
-        whatsappPhoneNumber,
-        isEmailVerified: true, // Auto-verify for simplicity
-      },
-    });
-
-    return user;
   }
 
   async findByEmail(email: string): Promise<User | null> {

@@ -7,13 +7,13 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 // Business owner authentication (single user per deployment)
 model User {
-  id                   String   @id @default(cuid())
+  id                   String   @id @default(uuid())
   email                String   @unique
   passwordHash         String   @map("password_hash")
   businessName         String   @map("business_name")
@@ -36,7 +36,7 @@ model User {
 
 // User sessions for JWT management
 model UserSession {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   userId    String   @map("user_id")
   tokenHash String   @unique @map("token_hash")
   expiresAt DateTime @map("expires_at")
@@ -53,7 +53,7 @@ model UserSession {
 
 // Customer conversations (WhatsApp customers)
 model Conversation {
-  id               String    @id @default(cuid())
+  id               String    @id @default(uuid())
   userId           String    @map("user_id") // Business owner
   customerPhone    String    @map("customer_phone")
   customerName     String?   @map("customer_name")
@@ -76,7 +76,7 @@ model Conversation {
 
 // Message history for conversations
 model Message {
-  id               String    @id @default(cuid())
+  id               String    @id @default(uuid())
   conversationId   String    @map("conversation_id")
   content          String
   senderType       String    @map("sender_type") // customer, ai, agent
@@ -98,7 +98,7 @@ model Message {
 
 // Knowledge base documents (max 50 per user)
 model Document {
-  id           String   @id @default(cuid())
+  id           String   @id @default(uuid())
   userId       String   @map("user_id")
   filename     String
   originalName String   @map("original_name")
@@ -122,7 +122,7 @@ model Document {
 
 // AI prompt templates
 model PromptTemplate {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   userId      String   @map("user_id")
   name        String
   description String?
@@ -144,7 +144,7 @@ model PromptTemplate {
 
 // Simple analytics tracking (not for billing)
 model AnalyticsSummary {
-  id                   String   @id @default(cuid())
+  id                   String   @id @default(uuid())
   userId               String   @map("user_id")
   date                 DateTime
   totalMessages        Int      @default(0) @map("total_messages")
@@ -160,7 +160,7 @@ model AnalyticsSummary {
 
 // Keep existing webhook logs for debugging
 model WebhookLog {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   source    String   // whatsapp, manual, etc.
   payload   String
   signature String?
