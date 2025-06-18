@@ -18,8 +18,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    // Use retry logic for initial connection
-    await this.connectWithRetry();
+    // Don't wait for database connection during startup - let app start immediately
+    // Database connection will be established on first use
+    this.connectInBackground();
+  }
+
+  private connectInBackground() {
+    // Connect in background without blocking startup
+    this.connectWithRetry().catch(error => {
+      this.logger.error('Background database connection failed', error);
+    });
   }
 
   private async connectWithRetry(maxAttempts = 5, delayMs = 2000) {
@@ -63,11 +71,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     });
   }
 
+  async ensureConnected(): Promise<void> {
+    try {
+      await this.$queryRaw`SELECT 1`;
+    } catch (error) {
+      this.logger.warn('Database not connected, attempting to connect...');
+      await this.connectWithRetry(3, 1000); // Quick retry
+    }
+  }
+
   async healthCheck(): Promise<boolean> {
     try {
       // Quick connection test with timeout
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database health check timeout')), 5000)
+        setTimeout(() => reject(new Error('Database health check timeout')), 3000)
       );
       
       const queryPromise = this.$queryRaw`SELECT 1`;
