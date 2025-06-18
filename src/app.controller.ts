@@ -100,7 +100,7 @@ export class AppController {
       }
 
       // Test if we can query users table
-      let userCount = 0;
+      let userCount: number | string = 0;
       try {
         const countResult = await this.prismaService.$queryRaw`SELECT COUNT(*) as count FROM users`;
         userCount = (countResult as any)[0]?.count || 0;
