@@ -64,9 +64,5 @@ USER nestjs
 # Expose port (Railway will set PORT environment variable)
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
-
-# Start the application
+# Start the application (Railway will handle health checks via HTTP)
 CMD ["npm", "run", "start:prod"]

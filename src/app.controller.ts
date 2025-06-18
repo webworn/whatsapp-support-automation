@@ -20,6 +20,9 @@ export class AppController {
       timestamp: new Date().toISOString(),
       service: 'WhatsApp AI Railway Template',
       version: '3.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
     };
   }
 }

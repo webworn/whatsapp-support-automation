@@ -3,13 +3,11 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { AppModule } from './app.module';
-import { PrismaService } from './shared/database/prisma.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   const configService = app.get(ConfigService);
-  const prismaService = app.get(PrismaService);
   const logger = new Logger('Bootstrap');
 
   // Global pipes for validation
@@ -24,8 +22,8 @@ async function bootstrap() {
     }),
   );
 
-  // Enable shutdown hooks for Prisma
-  await prismaService.enableShutdownHooks(app);
+  // Enable graceful shutdown
+  app.enableShutdownHooks();
 
   // CORS configuration
   app.enableCors({
