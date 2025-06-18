@@ -139,15 +139,15 @@ export class AppController {
       const execAsync = promisify(exec);
 
       if (process.env.NODE_ENV === 'production') {
-        // In production, run migrate deploy
-        const result = await execAsync('npx prisma migrate deploy', { 
+        // In production, use db push since we don't have migration files
+        const result = await execAsync('npx prisma db push', { 
           timeout: 30000,
           env: { ...process.env }
         });
         
         return {
           status: 'success',
-          message: 'Database migrations completed',
+          message: 'Database schema created/updated in production',
           output: result.stdout,
           error: result.stderr,
           timestamp: new Date().toISOString(),
