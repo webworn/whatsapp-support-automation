@@ -80,4 +80,33 @@ export class AuthController {
   async healthCheck() {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }
+
+  @Get('debug')
+  @Public()
+  async debugAuth() {
+    try {
+      // Test that all services are loaded
+      const testUser = {
+        email: 'test@debug.com',
+        id: 'debug-id'
+      };
+      
+      return {
+        status: 'ok',
+        message: 'Auth module loaded successfully',
+        services: {
+          authService: !!this.authService,
+          userService: !!this.userService,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: 'Auth module error',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
 }
