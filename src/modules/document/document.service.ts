@@ -13,7 +13,7 @@ export class DocumentService {
 
   async uploadDocument(
     userId: string,
-    file: Express.Multer.File,
+    file: Express.Multer.File | null,
     createDocumentDto: CreateDocumentDto
   ): Promise<DocumentResponseDto> {
     try {

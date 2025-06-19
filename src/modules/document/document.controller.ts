@@ -31,6 +31,15 @@ export class DocumentController {
     return this.documentService.uploadDocument(userId, file, createDocumentDto);
   }
 
+  @Post('upload-text')
+  async uploadTextDocument(
+    @Body() createDocumentDto: CreateDocumentDto,
+    @Request() req: any
+  ): Promise<DocumentResponseDto> {
+    const userId = req.user.sub;
+    return this.documentService.uploadDocument(userId, null, createDocumentDto);
+  }
+
   @Get()
   async getDocuments(@Request() req: any): Promise<DocumentResponseDto[]> {
     const userId = req.user.sub;
