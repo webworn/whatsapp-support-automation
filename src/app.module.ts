@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_GUARD } from '@nestjs/core';
+import { join } from 'path';
 
 // Core modules
 import { PrismaModule } from './shared/database/prisma.module';
@@ -16,6 +18,7 @@ import { DashboardModule } from './gateways/dashboard.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { FrontendController } from './frontend.controller';
 
 @Module({
   imports: [
@@ -24,6 +27,12 @@ import { AppService } from './app.service';
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
       cache: true,
+    }),
+
+    // Serve frontend static files
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'frontend', '.next', 'static'),
+      serveRoot: '/_next/static',
     }),
 
     // Core modules
@@ -37,7 +46,7 @@ import { AppService } from './app.service';
     DashboardModule,
     // LlmModule, // Will add in Phase 3
   ],
-  controllers: [AppController],
+  controllers: [AppController, FrontendController],
   providers: [
     AppService,
     {

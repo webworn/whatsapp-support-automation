@@ -42,13 +42,15 @@ api.interceptors.response.use(
 );
 
 // Helper function to handle mock fallback
-const withMockFallback = async <T>(apiCall: () => Promise<T>, mockCall: () => Promise<T>): Promise<T> => {
+const withMockFallback = async <T>(apiCall: () => Promise<any>, mockCall: () => Promise<T>): Promise<any> => {
   if (USE_MOCK_DATA) {
     try {
       return await apiCall();
     } catch (error) {
       console.warn('API call failed, using mock data:', error);
-      return await mockCall();
+      // Convert mock data to axios response format
+      const mockData = await mockCall();
+      return { data: mockData };
     }
   }
   return await apiCall();
