@@ -23,14 +23,14 @@ import {
   WebhookVerificationDto 
 } from './dto/webhook.dto';
 
-@Controller('api/webhook')
+@Controller('webhooks')
 export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
 
   constructor(private readonly webhookService: WebhookService) {}
 
   // WhatsApp webhook verification (GET request)
-  @Get('whatsapp')
+  @Get('whatsapp-business')
   @Public()
   async verifyWebhook(@Query() query: WebhookVerificationDto): Promise<string> {
     const mode = query['hub.mode'];
@@ -43,7 +43,7 @@ export class WebhookController {
   }
 
   // WhatsApp webhook for incoming messages (POST request)
-  @Post('whatsapp')
+  @Post('whatsapp-business')
   @Public()
   @HttpCode(HttpStatus.OK)
   async handleWhatsAppWebhook(
@@ -95,7 +95,7 @@ export class WebhookController {
   }
 
   // Test endpoint for manual webhook testing
-  @Post('whatsapp/test')
+  @Post('whatsapp-business/test')
   @Public()
   @HttpCode(HttpStatus.OK)
   async testWebhook(@Body() testData: any) {
@@ -190,9 +190,9 @@ export class WebhookController {
       timestamp: new Date().toISOString(),
       service: 'WhatsApp Webhook',
       endpoints: {
-        verification: 'GET /api/webhook/whatsapp',
-        messages: 'POST /api/webhook/whatsapp',
-        test: 'POST /api/webhook/whatsapp/test',
+        verification: 'GET /webhooks/whatsapp-business',
+        messages: 'POST /webhooks/whatsapp-business',
+        test: 'POST /webhooks/whatsapp-business/test',
       },
     };
   }
