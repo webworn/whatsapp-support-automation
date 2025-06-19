@@ -22,9 +22,9 @@
     "db:studio": "prisma studio",
     "db:seed": "ts-node prisma/seed.ts",
     "setup": "npm run db:generate && npm run db:push && npm run db:seed",
-    "railway:build": "npm run db:generate && npm run build",
-    "railway:start": "npm run db:migrate && npm run start:prod",
-    "postinstall": "prisma generate"
+    "railway:build": "npx prisma generate && npm run build",
+    "railway:start": "npx prisma db push && npm run start:prod",
+    "postinstall": "npx prisma generate"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
