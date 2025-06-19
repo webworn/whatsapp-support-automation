@@ -7,13 +7,14 @@ import {
   Body, 
   UploadedFile, 
   UseInterceptors,
-  UseGuards,
-  Request
+  UseGuards
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentService } from './document.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreateDocumentDto, DocumentResponseDto } from './dto/document.dto';
+import { User } from '@prisma/client';
 
 @Controller('api/documents')
 @UseGuards(JwtAuthGuard)
@@ -25,44 +26,38 @@ export class DocumentController {
   async uploadDocument(
     @UploadedFile() file: Express.Multer.File,
     @Body() createDocumentDto: CreateDocumentDto,
-    @Request() req: any
+    @CurrentUser() user: User
   ): Promise<DocumentResponseDto> {
-    const userId = req.user.sub;
-    return this.documentService.uploadDocument(userId, file, createDocumentDto);
+    return this.documentService.uploadDocument(user.id, file, createDocumentDto);
   }
 
   @Post('upload-text')
   async uploadTextDocument(
     @Body() createDocumentDto: CreateDocumentDto,
-    @Request() req: any
+    @CurrentUser() user: User
   ): Promise<DocumentResponseDto> {
-    const userId = req.user.sub;
-    return this.documentService.uploadDocument(userId, null, createDocumentDto);
+    return this.documentService.uploadDocument(user.id, null, createDocumentDto);
   }
 
   @Get()
-  async getDocuments(@Request() req: any): Promise<DocumentResponseDto[]> {
-    const userId = req.user.sub;
-    return this.documentService.getUserDocuments(userId);
+  async getDocuments(@CurrentUser() user: User): Promise<DocumentResponseDto[]> {
+    return this.documentService.getUserDocuments(user.id);
   }
 
   @Get(':id')
-  async getDocument(@Param('id') id: string, @Request() req: any): Promise<DocumentResponseDto> {
-    const userId = req.user.sub;
-    return this.documentService.getDocument(userId, id);
+  async getDocument(@Param('id') id: string, @CurrentUser() user: User): Promise<DocumentResponseDto> {
+    return this.documentService.getDocument(user.id, id);
   }
 
   @Delete(':id')
-  async deleteDocument(@Param('id') id: string, @Request() req: any): Promise<{ success: boolean }> {
-    const userId = req.user.sub;
-    await this.documentService.deleteDocument(userId, id);
+  async deleteDocument(@Param('id') id: string, @CurrentUser() user: User): Promise<{ success: boolean }> {
+    await this.documentService.deleteDocument(user.id, id);
     return { success: true };
   }
 
   @Get(':id/content')
-  async getDocumentContent(@Param('id') id: string, @Request() req: any): Promise<{ content: string }> {
-    const userId = req.user.sub;
-    const content = await this.documentService.getDocumentContent(userId, id);
+  async getDocumentContent(@Param('id') id: string, @CurrentUser() user: User): Promise<{ content: string }> {
+    const content = await this.documentService.getDocumentContent(user.id, id);
     return { content };
   }
 }
