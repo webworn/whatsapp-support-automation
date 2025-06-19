@@ -31,9 +31,14 @@ export class LlmService {
     const startTime = Date.now();
     
     try {
-      const apiKey = this.configService.get<string>('llm.openrouter.apiKey');
+      const apiKey = this.configService.get<string>('llm.openrouter.apiKey') || process.env.OPENROUTER_API_KEY;
       if (!apiKey) {
-        throw new Error('OpenRouter API key not configured');
+        this.logger.warn('OpenRouter API key not configured, using fallback response');
+        return {
+          content: this.getFallbackResponse(request.businessName),
+          model: 'fallback-no-api-key',
+          processingTimeMs: Date.now() - startTime,
+        };
       }
 
       const baseUrl = this.configService.get<string>('llm.openrouter.baseUrl');

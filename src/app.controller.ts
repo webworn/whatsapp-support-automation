@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Optional } from '@nestjs/common';
 import { AppService } from './app.service';
 import { Public } from './modules/auth/decorators/public.decorator';
 import { PrismaService } from './shared/database/prisma.service';
@@ -9,7 +9,7 @@ export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly prismaService: PrismaService,
-    private readonly llmService: LlmService,
+    @Optional() private readonly llmService?: LlmService,
   ) {}
 
   @Get()
@@ -265,6 +265,14 @@ export class AppController {
   @Public()
   async testLLM() {
     try {
+      if (!this.llmService) {
+        return {
+          status: 'error',
+          message: 'LLM service not available',
+          timestamp: new Date().toISOString(),
+        };
+      }
+
       const testResult = await this.llmService.testConnection();
       
       if (testResult.status === 'connected') {

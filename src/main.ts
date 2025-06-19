@@ -5,7 +5,15 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  let app;
+  try {
+    app = await NestFactory.create(AppModule, {
+      logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+    });
+  } catch (error) {
+    console.error('❌ Failed to create NestJS application:', error);
+    throw error;
+  }
   
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
