@@ -14,6 +14,63 @@ export class ConversationService {
 
   constructor(private prisma: PrismaService) {}
 
+  async getUserConversations(
+    userId: string,
+    query?: ConversationQueryDto
+  ): Promise<{ conversations: ConversationResponseDto[]; total: number; limit: number; offset: number }> {
+    const { limit = 20, offset = 0, status, search } = query || {};
+
+    const limitNum = Number(limit);
+    const offsetNum = Number(offset);
+
+    const where: any = { userId };
+    
+    if (status) {
+      where.status = status;
+    }
+    
+    if (search) {
+      where.OR = [
+        { customerName: { contains: search } },
+        { customerPhone: { contains: search } },
+      ];
+    }
+
+    const [conversations, total] = await Promise.all([
+      this.prisma.conversation.findMany({
+        where,
+        orderBy: { lastMessageAt: 'desc' },
+        take: limitNum,
+        skip: offsetNum,
+        include: {
+          _count: {
+            select: { messages: true }
+          }
+        }
+      }),
+      this.prisma.conversation.count({ where })
+    ]);
+
+    const conversationDtos: ConversationResponseDto[] = conversations.map(conv => ({
+      id: conv.id,
+      customerPhone: conv.customerPhone,
+      customerName: conv.customerName,
+      status: conv.status as 'active' | 'closed' | 'archived',
+      aiEnabled: conv.aiEnabled,
+      lastMessageAt: conv.lastMessageAt,
+      messageCount: (conv as any)._count?.messages || 0,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
+    }));
+
+    return {
+      conversations: conversationDtos,
+      total,
+      limit: limitNum,
+      offset: offsetNum,
+    };
+  }
+
   async createConversation(
     userId: string, 
     createDto: CreateConversationDto

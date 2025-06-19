@@ -124,10 +124,10 @@ export class DocumentService {
       where: {
         userId,
         OR: [
-          { filename: { contains: query, mode: 'insensitive' } },
-          { content: { contains: query, mode: 'insensitive' } },
-          { category: { contains: query, mode: 'insensitive' } },
-          { tags: { contains: query, mode: 'insensitive' } },
+          { filename: { contains: query } },
+          { content: { contains: query } },
+          { category: { contains: query } },
+          { tags: { contains: query } },
         ],
       },
       orderBy: { createdAt: 'desc' },
@@ -143,7 +143,7 @@ export class DocumentService {
       where: {
         userId,
         status: DocumentStatus.READY,
-        content: { contains: query, mode: 'insensitive' },
+        content: { contains: query },
       },
       select: { content: true },
       take: limit,
