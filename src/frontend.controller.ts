@@ -1,7 +1,5 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { join } from 'path';
-import { readFileSync } from 'fs';
 import { Public } from './modules/auth/decorators/public.decorator';
 
 @Controller()
@@ -11,10 +9,7 @@ export class FrontendController {
   @Get(['dashboard*', 'login', 'register'])
   serveFrontend(@Res() res: Response) {
     try {
-      // Serve the Next.js built HTML
-      const indexPath = join(__dirname, '..', 'frontend', '.next', 'server', 'app', 'dashboard', 'page.js');
-      
-      // For now, serve a simple HTML that loads the frontend
+      // Serve a simple HTML status page
       const html = `
         <!DOCTYPE html>
         <html>
