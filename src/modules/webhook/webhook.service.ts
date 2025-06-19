@@ -372,7 +372,12 @@ export class WebhookService {
       this.logger.log(`Generating AI response for conversation ${conversationId}`);
 
       // Get conversation history for context (last 10 messages)
-      const recentMessages = await this.messageService.getMessages(userId, conversationId, 1, 10);
+      const recentMessages = await this.messageService.findMessages(userId, {
+        conversationId,
+        limit: '10',
+        offset: '0',
+        sortOrder: 'desc'
+      });
       
       // Get user info for business context
       const user = await this.prisma.user.findUnique({
