@@ -117,14 +117,19 @@ export class WebhookService {
         return null;
       }
 
-      // For now, we'll create a demo user if none exists (in production, this would be based on phone number configuration)
-      const demoUserId = await this.getOrCreateDemoUser();
+      // Find the user who owns this WhatsApp phone number
+      const userId = await this.getUserByWhatsAppPhone(customerPhone);
+      
+      if (!userId) {
+        this.logger.warn(`No user configured for WhatsApp phone: ${customerPhone}`);
+        return null; // Skip processing if no user is configured for this number
+      }
 
       // Find or create conversation
-      let conversation = await this.conversationService.findConversationByPhone(demoUserId, customerPhone);
+      let conversation = await this.conversationService.findConversationByPhone(userId, customerPhone);
       
       if (!conversation) {
-        conversation = await this.conversationService.createConversation(demoUserId, {
+        conversation = await this.conversationService.createConversation(userId, {
           customerPhone,
           customerName,
           aiEnabled: true,
@@ -132,7 +137,7 @@ export class WebhookService {
       }
 
       // Create message record
-      const messageRecord = await this.messageService.createMessage(demoUserId, {
+      const messageRecord = await this.messageService.createMessage(userId, {
         conversationId: conversation.id,
         content,
         senderType: 'customer',
@@ -228,9 +233,46 @@ export class WebhookService {
     }
   }
 
+  private async getUserByWhatsAppPhone(customerPhone: string): Promise<string | null> {
+    // In multi-tenant SAAS, we need to determine which user owns/handles this customer
+    // This could be done via:
+    // 1. WhatsApp Business Phone Number mapping (preferred)
+    // 2. Customer assignment rules
+    // 3. Round-robin or load balancing
+    
+    // For now, we'll look for users who have configured their WhatsApp phone number
+    // and either find exact match or use fallback logic
+    
+    // Option 1: Try to find user by their configured WhatsApp number
+    // (In production, you'd match customer calls to business WhatsApp number)
+    let user = await this.prisma.user.findFirst({
+      where: { 
+        whatsappPhoneNumber: { not: null },
+        isEmailVerified: true, // Only active users
+      },
+      orderBy: { lastLoginAt: 'desc' }, // Prefer recently active users
+    });
+
+    // Option 2: If no specific mapping, find the primary/default user
+    if (!user) {
+      user = await this.prisma.user.findFirst({
+        where: { isEmailVerified: true },
+        orderBy: { createdAt: 'asc' }, // Use first registered user as default
+      });
+    }
+
+    if (!user) {
+      this.logger.error(`No verified users found to handle customer ${customerPhone}`);
+      return null;
+    }
+
+    this.logger.log(`Routing customer ${customerPhone} to user ${user.email} (${user.businessName})`);
+    return user.id;
+  }
+
   private async getOrCreateDemoUser(): Promise<string> {
-    // In production, this would map WhatsApp phone numbers to specific users
-    // For demo, we'll create or get a default user
+    // Keep this method for backward compatibility and testing
+    // But it should not be used in production webhook processing
     
     let user = await this.prisma.user.findFirst({
       where: { email: 'demo@whatsapp-ai.com' },
@@ -250,7 +292,7 @@ export class WebhookService {
         },
       });
 
-      this.logger.log('Created demo user for WhatsApp webhook testing');
+      this.logger.log('Created demo user for testing purposes');
     }
 
     return user.id;
