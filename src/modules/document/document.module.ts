@@ -10,7 +10,7 @@ import { AuthModule } from '../auth/auth.module';
     PrismaModule,
     AuthModule,
     MulterModule.register({
-      dest: '/tmp/uploads',
+      storage: require('multer').memoryStorage(),
       limits: {
         fileSize: 10 * 1024 * 1024, // 10MB
       },
