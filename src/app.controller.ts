@@ -129,6 +129,47 @@ export class AppController {
     }
   }
 
+  @Get('debug-jwt')
+  @Public()
+  async debugJWT() {
+    try {
+      // Check if JWT_SECRET is available
+      const jwtSecret = process.env.JWT_SECRET;
+      
+      // Check recent user sessions
+      const recentSessions = await this.prismaService.userSession.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { email: true } } }
+      });
+
+      return {
+        status: 'success',
+        data: {
+          jwtSecretExists: !!jwtSecret,
+          jwtSecretLength: jwtSecret ? jwtSecret.length : 0,
+          recentSessionsCount: recentSessions.length,
+          recentSessions: recentSessions.map(s => ({
+            id: s.id,
+            userId: s.userId,
+            userEmail: s.user.email,
+            expiresAt: s.expiresAt,
+            createdAt: s.createdAt,
+            isExpired: s.expiresAt < new Date()
+          }))
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: 'Debug JWT check failed',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
   @Get('db-migrate')
   @Public()
   async runMigrations() {
