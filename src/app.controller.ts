@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { AppService } from './app.service';
 import { Public } from './modules/auth/decorators/public.decorator';
 import { PrismaService } from './shared/database/prisma.service';
@@ -164,6 +164,47 @@ export class AppController {
       return {
         status: 'error',
         message: 'Debug JWT check failed',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  @Get('test-jwt/:token')
+  @Public()
+  async testJWT(@Param('token') token: string) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const jwtSecret = process.env.JWT_SECRET;
+      
+      // Try to decode the token
+      const decoded = jwt.verify(token, jwtSecret);
+      
+      // Check if session exists
+      const session = await this.prismaService.userSession.findUnique({
+        where: { id: decoded.sessionId },
+        include: { user: { select: { email: true } } }
+      });
+
+      return {
+        status: 'success',
+        data: {
+          decoded,
+          sessionFound: !!session,
+          sessionDetails: session ? {
+            id: session.id,
+            userId: session.userId,
+            userEmail: session.user.email,
+            expiresAt: session.expiresAt,
+            isExpired: session.expiresAt < new Date()
+          } : null
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: 'JWT test failed',
         error: error.message,
         timestamp: new Date().toISOString(),
       };
