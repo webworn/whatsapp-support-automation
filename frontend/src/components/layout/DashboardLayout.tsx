@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   LogOut,
-  User
+  User,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ interface DashboardLayoutProps {
 const navigation = [
   { name: 'Overview', href: '/dashboard', icon: BarChart3 },
   { name: 'Conversations', href: '/dashboard/conversations', icon: MessageSquare },
+  { name: 'Knowledge Base', href: '/dashboard/knowledge', icon: BookOpen },
   { name: 'Customers', href: '/dashboard/customers', icon: Users },
   { name: 'Webhooks', href: '/dashboard/webhooks', icon: Webhook },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },

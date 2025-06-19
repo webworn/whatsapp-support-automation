@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { conversationsApi } from '@/lib/api';
+import { useRealTimeConversations } from '@/hooks/useRealTimeConversations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,60 +39,33 @@ interface ConversationStats {
 
 export default function ConversationsPage() {
   const router = useRouter();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [stats, setStats] = useState<ConversationStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all');
-  const [error, setError] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
+  
+  const {
+    conversations,
+    stats,
+    loading,
+    error,
+    toggleAI,
+    refreshConversations,
+    requestNotificationPermission,
+  } = useRealTimeConversations();
 
   useEffect(() => {
-    fetchConversations();
-    fetchStats();
-  }, []); // Empty dependency array is correct for initial load
-
-  const fetchConversations = async () => {
-    try {
-      setLoading(true);
-      const response = await conversationsApi.list({
-        search: searchQuery || undefined,
-      });
-      setConversations(response.data.conversations || []);
-    } catch (err) {
-      console.error('Failed to fetch conversations:', err);
-      setError('Failed to load conversations');
-      setConversations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const response = await conversationsApi.getStats();
-      setStats(response.data);
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    }
-  };
+    // Request notification permission on component mount
+    requestNotificationPermission().then(granted => {
+      setShowNotifications(granted);
+    });
+  }, [requestNotificationPermission]);
 
   const handleSearch = () => {
-    fetchConversations();
+    refreshConversations();
   };
 
   const handleToggleAI = async (conversationId: string) => {
-    try {
-      await conversationsApi.toggleAI(conversationId);
-      // Update local state
-      setConversations(prev => prev.map(conv => 
-        conv.id === conversationId 
-          ? { ...conv, aiEnabled: !conv.aiEnabled }
-          : conv
-      ));
-    } catch (err) {
-      console.error('Failed to toggle AI:', err);
-      setError('Failed to toggle AI');
-    }
+    await toggleAI(conversationId);
   };
 
   const filteredConversations = conversations.filter(conv => {
@@ -142,8 +115,21 @@ export default function ConversationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Conversations</h1>
-          <p className="text-gray-600">Manage your customer conversations and AI responses</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">Conversations</h1>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-green-600 font-medium">Live</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 mt-1">
+            <p className="text-gray-600">Manage your customer conversations and AI responses</p>
+            {showNotifications && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                🔔 Notifications enabled
+              </span>
+            )}
+          </div>
         </div>
         <Button 
           onClick={() => router.push('/dashboard/conversations/new')}
