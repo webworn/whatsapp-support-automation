@@ -2,12 +2,14 @@ import { Controller, Get, Param } from '@nestjs/common';
 import { AppService } from './app.service';
 import { Public } from './modules/auth/decorators/public.decorator';
 import { PrismaService } from './shared/database/prisma.service';
+import { LlmService } from './modules/llm/llm.service';
 
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly prismaService: PrismaService,
+    private readonly llmService: LlmService,
   ) {}
 
   @Get()
@@ -254,6 +256,58 @@ export class AppController {
         status: 'error',
         message: 'Database migration failed',
         error: error.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  @Get('test-llm')
+  @Public()
+  async testLLM() {
+    try {
+      const testResult = await this.llmService.testConnection();
+      
+      if (testResult.status === 'connected') {
+        const testResponse = await this.llmService.generateResponse({
+          messages: [
+            { role: 'user', content: 'Hello! Can you help me test the AI integration?' }
+          ],
+          businessName: 'Test Business',
+          customerName: 'Test Customer',
+        });
+
+        return {
+          status: 'success',
+          message: 'LLM integration working correctly',
+          data: {
+            connectionTest: testResult,
+            testResponse: {
+              content: testResponse.content,
+              model: testResponse.model,
+              processingTimeMs: testResponse.processingTimeMs,
+              tokensUsed: testResponse.tokensUsed,
+            },
+          },
+          timestamp: new Date().toISOString(),
+        };
+      } else {
+        return {
+          status: 'error',
+          message: 'LLM connection failed',
+          error: testResult.error,
+          timestamp: new Date().toISOString(),
+        };
+      }
+    } catch (error) {
+      return {
+        status: 'error',
+        message: 'LLM test failed',
+        error: error.message,
+        envVars: {
+          hasOpenRouterKey: !!process.env.OPENROUTER_API_KEY,
+          openRouterKeyLength: process.env.OPENROUTER_API_KEY?.length || 0,
+          primaryModel: process.env.OPENROUTER_PRIMARY_MODEL || 'not set',
+        },
         timestamp: new Date().toISOString(),
       };
     }

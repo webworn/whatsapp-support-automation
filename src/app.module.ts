@@ -12,7 +12,7 @@ import { ConversationModule } from './modules/conversation/conversation.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { DocumentModule } from './modules/document/document.module';
 import { DashboardModule } from './gateways/dashboard.module';
-// import { LlmModule } from './modules/llm/llm.module'; // Will add in Phase 3
+import { LlmModule } from './modules/llm/llm.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -37,7 +37,7 @@ import { FrontendController } from './frontend.controller';
     WebhookModule,
     DocumentModule,
     DashboardModule,
-    // LlmModule, // Will add in Phase 3
+    LlmModule,
   ],
   controllers: [AppController, FrontendController],
   providers: [

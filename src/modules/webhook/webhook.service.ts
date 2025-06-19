@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { ConversationService } from '../conversation/conversation.service';
 import { MessageService } from '../conversation/message.service';
+import { LlmService } from '../llm/llm.service';
+import { DocumentService } from '../document/document.service';
 import { 
   WhatsAppWebhookDto, 
   WhatsAppMessageDto,
@@ -20,6 +22,8 @@ export class WebhookService {
     private readonly prisma: PrismaService,
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
+    private readonly llmService: LlmService,
+    private readonly documentService: DocumentService,
   ) {}
 
   async verifyWebhook(mode: string, token: string, challenge: string): Promise<string> {
@@ -146,6 +150,13 @@ export class WebhookService {
       });
 
       this.logger.log(`Message processed: ${message.id} from ${customerPhone}`);
+
+      // Generate AI response if conversation has AI enabled
+      if (conversation.aiEnabled) {
+        setImmediate(() => {
+          this.generateAiResponse(userId, conversation.id, customerPhone, content, customerName);
+        });
+      }
 
       return {
         id: messageRecord.id,
@@ -348,5 +359,83 @@ export class WebhookService {
       recent,
       successRate: total > 0 ? Math.round((processed / total) * 100) : 0,
     };
+  }
+
+  private async generateAiResponse(
+    userId: string,
+    conversationId: string,
+    customerPhone: string,
+    customerMessage: string,
+    customerName?: string,
+  ): Promise<void> {
+    try {
+      this.logger.log(`Generating AI response for conversation ${conversationId}`);
+
+      // Get conversation history for context (last 10 messages)
+      const recentMessages = await this.messageService.getMessages(userId, conversationId, 1, 10);
+      
+      // Get user info for business context
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { businessName: true },
+      });
+
+      // Search knowledge base for relevant documents
+      const relevantDocs = await this.documentService.getRelevantDocuments(
+        userId, 
+        customerMessage, 
+        3 // Get top 3 relevant documents
+      );
+
+      this.logger.log(`Found ${relevantDocs.length} relevant documents for customer query`);
+
+      // Prepare conversation context including both customer and AI messages
+      const messages = recentMessages.messages
+        .reverse() // Chronological order
+        .map(msg => ({
+          role: msg.senderType === 'customer' ? 'user' as const : 'assistant' as const,
+          content: msg.content,
+        }));
+
+      // Generate AI response with knowledge base context
+      const aiResponse = await this.llmService.generateResponse({
+        messages,
+        businessName: user?.businessName,
+        customerName,
+        knowledgeBase: relevantDocs,
+        userQuery: customerMessage,
+      });
+
+      // Save AI response to database
+      await this.messageService.createMessage(userId, {
+        conversationId,
+        content: aiResponse.content,
+        senderType: 'ai',
+        messageType: 'text',
+        aiModelUsed: aiResponse.model,
+        processingTimeMs: aiResponse.processingTimeMs,
+      });
+
+      this.logger.log(`AI response generated and saved for conversation ${conversationId} (${aiResponse.processingTimeMs}ms)`);
+
+      // TODO: Send response back to WhatsApp (requires WhatsApp Send API)
+      // For now, we're just storing the response in the database
+
+    } catch (error) {
+      this.logger.error(`Failed to generate AI response for conversation ${conversationId}`, error);
+      
+      // Create fallback response in case of AI failure
+      try {
+        await this.messageService.createMessage(userId, {
+          conversationId,
+          content: `Thank you for your message! I'm experiencing some technical difficulties right now. A member of our team will get back to you shortly to assist you.`,
+          senderType: 'ai',
+          messageType: 'text',
+          aiModelUsed: 'fallback',
+        });
+      } catch (fallbackError) {
+        this.logger.error(`Failed to create fallback response`, fallbackError);
+      }
+    }
   }
 }
