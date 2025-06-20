@@ -10,11 +10,22 @@ COPY frontend ./frontend
 # Change to frontend directory
 WORKDIR /app/frontend
 
+# Debug: List contents to verify structure
+RUN ls -la
+
 # Install frontend dependencies
 RUN npm ci --prefer-offline --no-audit --progress=false
 
+# Debug: Show package.json scripts
+RUN cat package.json | grep -A 10 '"scripts"'
+
 # Build frontend for production
 RUN npm run build
+
+# Debug: Show build output and create missing directories
+RUN ls -la .next/ || echo "No .next directory found"
+RUN ls -la public/ || echo "No public directory found"
+RUN mkdir -p public || echo "Public directory exists"
 
 # Main application stage
 FROM node:18-alpine AS backend
@@ -47,6 +58,9 @@ RUN npx prisma generate
 COPY src ./src
 COPY tsconfig*.json ./
 COPY nest-cli.json ./
+
+# Create frontend directory structure
+RUN mkdir -p frontend/public frontend/.next
 
 # Copy built frontend from frontend-builder stage
 COPY --from=frontend-builder /app/frontend/.next ./frontend/.next
