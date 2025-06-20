@@ -1,38 +1,7 @@
-# Multi-stage build for Railway deployment
-FROM node:18-alpine AS builder
+# Simplified single-stage build for Railway
+FROM node:18-alpine
 
-# Install OpenSSL and other necessary packages for Railway
-RUN apk add --no-cache \
-    openssl \
-    openssl-dev \
-    libc6-compat \
-    ca-certificates
-
-# Set working directory
-WORKDIR /app
-
-# Copy backend package files first
-COPY package*.json ./
-COPY prisma ./prisma/
-
-# Install backend dependencies only (no frontend build in Docker)
-RUN npm ci && npm cache clean --force
-
-# Copy backend source code only
-COPY src ./src
-COPY tsconfig*.json ./
-COPY nest-cli.json ./
-
-# Generate Prisma client
-RUN npx prisma generate
-
-# Build backend only (skip frontend build in Docker)
-RUN npm run build
-
-# Production stage
-FROM node:18-alpine AS production
-
-# Install runtime dependencies for Railway
+# Install necessary packages
 RUN apk add --no-cache \
     openssl \
     openssl-dev \
@@ -40,20 +9,32 @@ RUN apk add --no-cache \
     ca-certificates \
     curl
 
+# Set working directory
 WORKDIR /app
 
-# Copy package files for production install
+# Set Node.js memory limit to avoid OOM
+ENV NODE_OPTIONS="--max-old-space-size=1024"
+
+# Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies with memory optimization
+RUN npm ci --prefer-offline --no-audit --progress=false && npm cache clean --force
 
-# Generate Prisma client for production
+# Generate Prisma client
 RUN npx prisma generate
 
-# Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
+# Copy source code
+COPY src ./src
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
+
+# Build the application
+RUN npm run build
+
+# Remove dev dependencies to save space
+RUN npm prune --omit=dev
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs
