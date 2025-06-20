@@ -19,8 +19,8 @@ ENV NODE_OPTIONS="--max-old-space-size=1024"
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies with memory optimization
-RUN npm ci --prefer-offline --no-audit --progress=false && npm cache clean --force
+# Install dependencies with legacy peer deps to resolve conflicts
+RUN npm ci --legacy-peer-deps --prefer-offline --no-audit --progress=false && npm cache clean --force
 
 # Generate Prisma client
 RUN npx prisma generate
