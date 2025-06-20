@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_GUARD } from '@nestjs/core';
+import { join } from 'path';
 
 // Core modules
 import { PrismaModule } from './shared/database/prisma.module';
@@ -28,6 +30,16 @@ import { FrontendController } from './frontend.controller';
       cache: true,
     }),
 
+    // Static file serving for frontend
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'frontend', '.next', 'static'),
+      serveRoot: '/_next/static',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'frontend', 'public'),
+      serveRoot: '/static',
+      exclude: ['/api*'],
+    }),
 
     // Core modules
     PrismaModule,

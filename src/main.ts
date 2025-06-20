@@ -33,11 +33,17 @@ async function bootstrap() {
   // Enable graceful shutdown
   app.enableShutdownHooks();
 
-  // CORS configuration
+  // CORS configuration for frontend-backend integration
   app.enableCors({
-    origin: configService.get('CORS_ORIGINS', '*'),
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001', 
+      configService.get('RAILWAY_PUBLIC_DOMAIN') ? `https://${configService.get('RAILWAY_PUBLIC_DOMAIN')}` : '',
+      'https://whatsapp-support-automation-production.up.railway.app'
+    ].filter(Boolean),
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-password'],
   });
 
   // Railway uses PORT environment variable
