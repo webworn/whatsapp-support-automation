@@ -2,16 +2,16 @@
 FROM node:18-alpine AS frontend-builder
 
 # Set working directory for frontend
-WORKDIR /app/frontend
+WORKDIR /app
 
-# Copy frontend package files
-COPY frontend/package*.json ./
+# Copy frontend directory and its contents
+COPY frontend ./frontend
+
+# Change to frontend directory
+WORKDIR /app/frontend
 
 # Install frontend dependencies
 RUN npm ci --prefer-offline --no-audit --progress=false
-
-# Copy frontend source code
-COPY frontend/ ./
 
 # Build frontend for production
 RUN npm run build
