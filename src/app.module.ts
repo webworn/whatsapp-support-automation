@@ -13,6 +13,7 @@ import { WebhookModule } from './modules/webhook/webhook.module';
 import { DocumentModule } from './modules/document/document.module';
 import { DashboardModule } from './gateways/dashboard.module';
 import { LlmModule } from './modules/llm/llm.module';
+import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -38,6 +39,7 @@ import { FrontendController } from './frontend.controller';
     DocumentModule,
     DashboardModule,
     LlmModule,
+    WhatsAppModule,
   ],
   controllers: [AppController, FrontendController],
   providers: [

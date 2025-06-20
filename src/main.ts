@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  let app;
+  let app: any;
   try {
     app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log', 'debug', 'verbose'],
@@ -51,7 +51,13 @@ async function bootstrap() {
   logger.log(`🔑 Auth endpoints: http://${host}:${port}/api/auth/*`);
   
   if (configService.get('NODE_ENV') === 'production') {
-    logger.log(`🌍 Public URL: https://${configService.get('RAILWAY_PUBLIC_DOMAIN') || 'your-app.railway.app'}`);
+    const publicDomain = configService.get('RAILWAY_PUBLIC_DOMAIN');
+    const privateDomain = configService.get('RAILWAY_PRIVATE_DOMAIN');
+    
+    logger.log(`🌍 Public URL: https://${publicDomain || 'your-app.railway.app'}`);
+    if (privateDomain) {
+      logger.log(`🔒 Private URL: https://${privateDomain} (internal services)`);
+    }
   }
 }
 

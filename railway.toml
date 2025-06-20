@@ -8,3 +8,12 @@ healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
+
+# Use private networking to avoid egress fees
+[services.backend]
+privateNetworking = true
+
+# Environment variables for private endpoints
+[[services.backend.variables]]
+name = "DATABASE_URL"
+value = "${{Postgres.DATABASE_PRIVATE_URL}}"

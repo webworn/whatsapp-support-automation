@@ -3,6 +3,7 @@ import { AppService } from './app.service';
 import { Public } from './modules/auth/decorators/public.decorator';
 import { PrismaService } from './shared/database/prisma.service';
 import { LlmService } from './modules/llm/llm.service';
+import { WhatsAppService } from './modules/whatsapp/whatsapp.service';
 
 @Controller()
 export class AppController {
@@ -10,6 +11,7 @@ export class AppController {
     private readonly appService: AppService,
     private readonly prismaService: PrismaService,
     @Optional() private readonly llmService?: LlmService,
+    @Optional() private readonly whatsappService?: WhatsAppService,
   ) {}
 
   @Get()
@@ -315,6 +317,49 @@ export class AppController {
           hasOpenRouterKey: !!process.env.OPENROUTER_API_KEY,
           openRouterKeyLength: process.env.OPENROUTER_API_KEY?.length || 0,
           primaryModel: process.env.OPENROUTER_PRIMARY_MODEL || 'not set',
+        },
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  @Get('test-whatsapp')
+  @Public()
+  async testWhatsApp() {
+    try {
+      if (!this.whatsappService) {
+        return {
+          status: 'error',
+          message: 'WhatsApp service not available',
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const connectionTest = await this.whatsappService.testConnection();
+      
+      return {
+        status: connectionTest.status === 'connected' ? 'success' : 'error',
+        message: connectionTest.status === 'connected' 
+          ? 'WhatsApp API connection successful' 
+          : 'WhatsApp API connection failed',
+        data: {
+          connectionTest,
+          credentials: {
+            hasAccessToken: !!process.env.WHATSAPP_ACCESS_TOKEN,
+            hasPhoneNumberId: !!process.env.WHATSAPP_PHONE_NUMBER_ID,
+            accessTokenLength: process.env.WHATSAPP_ACCESS_TOKEN?.length || 0,
+          }
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: 'WhatsApp test failed',
+        error: error.message,
+        envVars: {
+          hasAccessToken: !!process.env.WHATSAPP_ACCESS_TOKEN,
+          hasPhoneNumberId: !!process.env.WHATSAPP_PHONE_NUMBER_ID,
         },
         timestamp: new Date().toISOString(),
       };

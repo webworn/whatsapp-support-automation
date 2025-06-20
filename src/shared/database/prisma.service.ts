@@ -7,14 +7,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private readonly logger = new Logger(PrismaService.name);
 
   constructor(private configService: ConfigService) {
+    // Use private database URL if available to avoid egress fees
+    const databaseUrl = configService.get<string>('DATABASE_PRIVATE_URL') || 
+                       configService.get<string>('DATABASE_URL');
+    
     super({
       datasources: {
         db: {
-          url: configService.get<string>('DATABASE_URL'),
+          url: databaseUrl,
         },
       },
       log: ['error', 'warn'],
     });
+    
+    this.logger.log(`Using database URL: ${databaseUrl?.replace(/\/\/[^:]+:[^@]+@/, '//***:***@') || 'undefined'}`);
   }
 
   async onModuleInit() {

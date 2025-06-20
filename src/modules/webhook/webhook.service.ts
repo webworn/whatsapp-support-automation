@@ -5,6 +5,7 @@ import { ConversationService } from '../conversation/conversation.service';
 import { MessageService } from '../conversation/message.service';
 import { LlmService } from '../llm/llm.service';
 import { DocumentService } from '../document/document.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { 
   WhatsAppWebhookDto, 
   WhatsAppMessageDto,
@@ -24,6 +25,7 @@ export class WebhookService {
     private readonly messageService: MessageService,
     private readonly llmService: LlmService,
     private readonly documentService: DocumentService,
+    private readonly whatsappService: WhatsAppService,
   ) {}
 
   async verifyWebhook(mode: string, token: string, challenge: string): Promise<string> {
@@ -412,7 +414,7 @@ export class WebhookService {
       });
 
       // Save AI response to database
-      await this.messageService.createMessage(userId, {
+      const aiMessageRecord = await this.messageService.createMessage(userId, {
         conversationId,
         content: aiResponse.content,
         senderType: 'ai',
@@ -423,8 +425,18 @@ export class WebhookService {
 
       this.logger.log(`AI response generated and saved for conversation ${conversationId} (${aiResponse.processingTimeMs}ms)`);
 
-      // TODO: Send response back to WhatsApp (requires WhatsApp Send API)
-      // For now, we're just storing the response in the database
+      // Send AI response back to WhatsApp customer
+      try {
+        const sendResult = await this.whatsappService.sendTextMessage(customerPhone, aiResponse.content);
+        
+        if (sendResult.status === 'sent') {
+          this.logger.log(`AI response sent via WhatsApp: ${sendResult.messageId} for message ${aiMessageRecord.id}`);
+        } else {
+          this.logger.error(`Failed to send AI response via WhatsApp: ${sendResult.error}`);
+        }
+      } catch (sendError) {
+        this.logger.error(`Error sending AI response via WhatsApp`, sendError);
+      }
 
     } catch (error) {
       this.logger.error(`Failed to generate AI response for conversation ${conversationId}`, error);

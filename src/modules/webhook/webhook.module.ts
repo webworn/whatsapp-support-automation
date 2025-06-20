@@ -6,9 +6,10 @@ import { ConversationModule } from '../conversation/conversation.module';
 import { PrismaModule } from '../../shared/database/prisma.module';
 import { LlmModule } from '../llm/llm.module';
 import { DocumentModule } from '../document/document.module';
+import { WhatsAppModule } from '../whatsapp/whatsapp.module';
 
 @Module({
-  imports: [ConfigModule, PrismaModule, ConversationModule, LlmModule, DocumentModule],
+  imports: [ConfigModule, PrismaModule, ConversationModule, LlmModule, DocumentModule, WhatsAppModule],
   controllers: [WebhookController],
   providers: [WebhookService],
   exports: [WebhookService],
