@@ -11,20 +11,22 @@ RUN apk add --no-cache \
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy backend package files first
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install ALL dependencies (including dev dependencies for building)
+# Install backend dependencies only (no frontend build in Docker)
 RUN npm ci && npm cache clean --force
 
-# Copy source code
-COPY . .
+# Copy backend source code only
+COPY src ./src
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
 
 # Generate Prisma client
 RUN npx prisma generate
 
-# Build the application
+# Build backend only (skip frontend build in Docker)
 RUN npm run build
 
 # Production stage
