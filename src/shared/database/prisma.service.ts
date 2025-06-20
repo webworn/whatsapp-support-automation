@@ -7,9 +7,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private readonly logger = new Logger(PrismaService.name);
 
   constructor(private configService: ConfigService) {
-    // Use private database URL if available to avoid egress fees
-    const databaseUrl = configService.get<string>('DATABASE_PRIVATE_URL') || 
-                       configService.get<string>('DATABASE_URL');
+    // Use standard database URL (private URL may not be available yet)
+    const databaseUrl = configService.get<string>('DATABASE_URL');
     
     super({
       datasources: {

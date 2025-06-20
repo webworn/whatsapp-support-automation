@@ -1,8 +1,8 @@
 import { registerAs } from '@nestjs/config';
 
 export default registerAs('database', () => {
-  // Use private database URL if available to avoid egress fees
-  const databaseUrl = process.env.DATABASE_PRIVATE_URL || process.env.DATABASE_URL;
+  // Use standard database URL for now
+  const databaseUrl = process.env.DATABASE_URL;
   
   return {
     url: databaseUrl,

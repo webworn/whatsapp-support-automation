@@ -13,7 +13,7 @@ restartPolicyMaxRetries = 10
 [services.backend]
 privateNetworking = true
 
-# Environment variables for private endpoints
+# Environment variables for database connection
 [[services.backend.variables]]
 name = "DATABASE_URL"
-value = "${{Postgres.DATABASE_PRIVATE_URL}}"
+value = "${{Postgres.DATABASE_URL}}"

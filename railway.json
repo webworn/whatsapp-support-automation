@@ -15,7 +15,7 @@
     "backend": {
       "privateNetworking": true,
       "variables": {
-        "DATABASE_URL": "${{Postgres.DATABASE_PRIVATE_URL}}"
+        "DATABASE_URL": "${{Postgres.DATABASE_URL}}"
       }
     }
   }
