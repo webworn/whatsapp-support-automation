@@ -30,14 +30,15 @@ import { FrontendController } from './frontend.controller';
       cache: true,
     }),
 
-    // Static file serving for frontend
+    // Static file serving for Next.js frontend assets
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'frontend', '.next', 'static'),
+      rootPath: join(__dirname, '..', 'frontend', '.next', 'static'),
       serveRoot: '/_next/static',
+      exclude: ['/api*'],
     }),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'frontend', 'public'),
-      serveRoot: '/static',
+      rootPath: join(__dirname, '..', 'frontend', 'public'),
+      serveRoot: '/public',
       exclude: ['/api*'],
     }),
 

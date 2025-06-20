@@ -1,5 +1,23 @@
-# Simplified single-stage build for Railway
-FROM node:18-alpine
+# Multi-stage build: Frontend + Backend integration for Railway
+FROM node:18-alpine AS frontend-builder
+
+# Set working directory for frontend
+WORKDIR /app/frontend
+
+# Copy frontend package files
+COPY frontend/package*.json ./
+
+# Install frontend dependencies
+RUN npm ci --prefer-offline --no-audit --progress=false
+
+# Copy frontend source code
+COPY frontend/ ./
+
+# Build frontend for production
+RUN npm run build
+
+# Main application stage
+FROM node:18-alpine AS backend
 
 # Install necessary packages
 RUN apk add --no-cache \
@@ -15,22 +33,27 @@ WORKDIR /app
 # Set Node.js memory limit to avoid OOM
 ENV NODE_OPTIONS="--max-old-space-size=1024"
 
-# Copy package files
+# Copy backend package files
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies with legacy peer deps to resolve conflicts
+# Install backend dependencies with legacy peer deps to resolve conflicts
 RUN npm ci --legacy-peer-deps --prefer-offline --no-audit --progress=false && npm cache clean --force
 
 # Generate Prisma client
 RUN npx prisma generate
 
-# Copy source code
+# Copy backend source code
 COPY src ./src
 COPY tsconfig*.json ./
 COPY nest-cli.json ./
 
-# Build the application
+# Copy built frontend from frontend-builder stage
+COPY --from=frontend-builder /app/frontend/.next ./frontend/.next
+COPY --from=frontend-builder /app/frontend/public ./frontend/public
+COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
+
+# Build the backend application
 RUN npm run build
 
 # Remove dev dependencies to save space
@@ -47,5 +70,5 @@ USER nestjs
 # Expose port (Railway will set PORT environment variable)
 EXPOSE 3000
 
-# Start the application (Railway will handle health checks via HTTP)
+# Start the application
 CMD ["npm", "run", "start:prod"]
