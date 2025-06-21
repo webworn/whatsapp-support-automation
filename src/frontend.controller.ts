@@ -16,20 +16,12 @@ export class FrontendController {
       this.logger.log(`Serving frontend from: ${frontendPath}`);
       this.logger.log(`Requested path: ${req.path}`);
       
-      // Enhanced Next.js static file serving with better path resolution
+      // Check for Next.js build files
       const possiblePaths = [
-        // Next.js App Router structure
+        // Next.js standalone build
         join(frontendPath, '.next', 'server', 'app', 'page.html'),
-        join(frontendPath, '.next', 'server', 'app', 'layout.html'), 
-        join(frontendPath, '.next', 'server', 'app', '(auth)', 'login', 'page.html'),
-        join(frontendPath, '.next', 'server', 'app', '(auth)', 'register', 'page.html'),
-        join(frontendPath, '.next', 'server', 'app', 'dashboard', 'page.html'),
-        // Static export fallbacks  
-        join(frontendPath, 'out', 'index.html'),
-        join(frontendPath, 'out', 'login.html'),
-        join(frontendPath, 'out', 'register.html'),
-        join(frontendPath, 'out', 'dashboard.html'),
-        // Direct build outputs
+        join(frontendPath, '.next', 'server', 'app', 'layout.html'),
+        // Static files fallback
         join(frontendPath, '.next', 'static', 'index.html'),
         join(frontendPath, 'dist', 'index.html'),
       ];
@@ -47,13 +39,24 @@ export class FrontendController {
         this.logger.warn(`Frontend directory does not exist: ${frontendPath}`);
       }
       
-      // Check for any built frontend files
+      // Try to serve the Next.js app page for all routes
+      const appPagePath = join(frontendPath, '.next', 'server', 'app', 'page.html');
+      if (existsSync(appPagePath)) {
+        this.logger.log(`Serving Next.js app page: ${appPagePath}`);
+        const content = readFileSync(appPagePath, 'utf8');
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.send(content);
+        return;
+      }
+
+      // Fallback: try any available built files
       for (const htmlPath of possiblePaths) {
         if (existsSync(htmlPath)) {
-          this.logger.log(`Found frontend file: ${htmlPath}`);
+          this.logger.log(`Found fallback frontend file: ${htmlPath}`);
           const content = readFileSync(htmlPath, 'utf8');
           res.setHeader('Content-Type', 'text/html');
-          res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour cache
+          res.setHeader('Cache-Control', 'public, max-age=3600');
           res.send(content);
           return;
         }

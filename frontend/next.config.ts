@@ -13,7 +13,8 @@ const nextConfig: NextConfig = {
   
   // Build configuration
   distDir: '.next',
-  output: 'standalone', // Optimized for Docker deployment
+  output: 'standalone', // Back to standalone for better compatibility
+  // trailingSlash: true,
   
   // Image optimization - disable for Railway deployment simplicity
   images: {

@@ -10,14 +10,8 @@ COPY frontend ./frontend
 # Change to frontend directory
 WORKDIR /app/frontend
 
-# Debug: List contents to verify structure
-RUN ls -la
-
 # Install frontend dependencies
 RUN npm ci --prefer-offline --no-audit --progress=false
-
-# Debug: Show package.json scripts
-RUN cat package.json | grep -A 10 '"scripts"'
 
 # Set production environment variables for frontend build
 ENV NODE_ENV=production
@@ -29,10 +23,8 @@ ENV NEXT_PUBLIC_ENV=production
 # Build frontend for production
 RUN npm run build
 
-# Debug: Show build output and create missing directories
-RUN ls -la .next/ || echo "No .next directory found"
-RUN ls -la public/ || echo "No public directory found"
-RUN mkdir -p public || echo "Public directory exists"
+# Debug: Show build output
+RUN ls -la .next/
 
 # Main application stage
 FROM node:18-alpine AS backend
@@ -73,6 +65,9 @@ RUN mkdir -p frontend/public frontend/.next
 COPY --from=frontend-builder /app/frontend/.next ./frontend/.next
 COPY --from=frontend-builder /app/frontend/public ./frontend/public
 COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
+
+# Copy standalone server if it exists
+COPY --from=frontend-builder /app/frontend/.next/standalone ./frontend/standalone || true
 
 # Build the backend application
 RUN npm run build
