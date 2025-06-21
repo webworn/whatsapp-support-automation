@@ -14,7 +14,7 @@ export class AppController {
     @Optional() private readonly whatsappService?: WhatsAppService,
   ) {}
 
-  @Get()
+  @Get('api')
   @Public()
   getHello(): string {
     return this.appService.getHello();

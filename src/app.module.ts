@@ -54,7 +54,7 @@ import { FrontendController } from './frontend.controller';
     LlmModule,
     WhatsAppModule,
   ],
-  controllers: [AppController, FrontendController],
+  controllers: [FrontendController, AppController],
   providers: [
     AppService,
     {
