@@ -84,16 +84,40 @@ model Message {
   messageType      String    @default("text") @map("message_type") // text, image, document, audio
   aiModelUsed      String?   @map("ai_model_used")
   processingTimeMs Int?      @map("processing_time_ms")
+  deliveryStatus   String    @default("pending") @map("delivery_status") // pending, sent, delivered, read, failed
   metadata         String?
   timestamp        DateTime  @default(now())
   createdAt        DateTime  @default(now()) @map("created_at")
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  deliveryUpdates MessageDeliveryUpdate[]
 
   @@index([conversationId])
   @@index([timestamp])
   @@index([senderType])
+  @@index([deliveryStatus])
   @@map("messages")
+}
+
+// Message delivery status tracking
+model MessageDeliveryUpdate {
+  id                String   @id @default(uuid())
+  messageId         String   @map("message_id")
+  whatsappMessageId String   @map("whatsapp_message_id")
+  status            String   // sent, delivered, read, failed
+  timestamp         DateTime @default(now())
+  recipientId       String?  @map("recipient_id")
+  errorCode         String?  @map("error_code")
+  errorMessage      String?  @map("error_message")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([whatsappMessageId])
+  @@index([status])
+  @@index([timestamp])
+  @@map("message_delivery_updates")
 }
 
 // Knowledge base documents (max 50 per user)

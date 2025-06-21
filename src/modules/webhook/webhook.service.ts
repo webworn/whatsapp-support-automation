@@ -238,11 +238,39 @@ export class WebhookService {
 
   private async processMessageStatuses(statuses: WhatsAppStatusDto[]): Promise<void> {
     for (const status of statuses) {
-      // Log status updates for monitoring
       this.logger.log(`Message ${status.id} status: ${status.status} for ${status.recipient_id}`);
       
-      // Here you could update message delivery status in database
-      // For now, we'll just log it
+      try {
+        // Find the message by WhatsApp message ID
+        const message = await this.prisma.message.findUnique({
+          where: { whatsappMessageId: status.id },
+        });
+
+        if (message) {
+          // Update the message delivery status
+          await this.prisma.message.update({
+            where: { id: message.id },
+            data: { deliveryStatus: status.status },
+          });
+
+          // Create a delivery update record for tracking history
+          await this.prisma.messageDeliveryUpdate.create({
+            data: {
+              messageId: message.id,
+              whatsappMessageId: status.id,
+              status: status.status,
+              recipientId: status.recipient_id,
+              timestamp: new Date(parseInt(status.timestamp) * 1000),
+            },
+          });
+
+          this.logger.log(`Updated delivery status for message ${message.id}: ${status.status}`);
+        } else {
+          this.logger.warn(`Message not found for WhatsApp ID: ${status.id}`);
+        }
+      } catch (error) {
+        this.logger.error(`Failed to update delivery status for message ${status.id}`, error);
+      }
     }
   }
 
@@ -430,12 +458,32 @@ export class WebhookService {
         const sendResult = await this.whatsappService.sendTextMessage(customerPhone, aiResponse.content);
         
         if (sendResult.status === 'sent') {
+          // Update message with WhatsApp message ID and delivery status
+          await this.messageService.updateMessage(userId, aiMessageRecord.id, {
+            whatsappMessageId: sendResult.messageId,
+            deliveryStatus: 'sent',
+          });
+
           this.logger.log(`AI response sent via WhatsApp: ${sendResult.messageId} for message ${aiMessageRecord.id}`);
         } else {
+          // Update message with failed status
+          await this.messageService.updateMessage(userId, aiMessageRecord.id, {
+            deliveryStatus: 'failed',
+          });
+
           this.logger.error(`Failed to send AI response via WhatsApp: ${sendResult.error}`);
         }
       } catch (sendError) {
         this.logger.error(`Error sending AI response via WhatsApp`, sendError);
+        
+        // Update message with failed status
+        try {
+          await this.messageService.updateMessage(userId, aiMessageRecord.id, {
+            deliveryStatus: 'failed',
+          });
+        } catch (updateError) {
+          this.logger.error(`Failed to update message delivery status`, updateError);
+        }
       }
 
     } catch (error) {

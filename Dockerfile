@@ -19,6 +19,13 @@ RUN npm ci --prefer-offline --no-audit --progress=false
 # Debug: Show package.json scripts
 RUN cat package.json | grep -A 10 '"scripts"'
 
+# Set production environment variables for frontend build
+ENV NODE_ENV=production
+ENV NEXT_PUBLIC_API_URL=""
+ENV NEXT_PUBLIC_APP_NAME="WhatsApp AI SaaS Platform"
+ENV NEXT_PUBLIC_WS_URL=""
+ENV NEXT_PUBLIC_ENV=production
+
 # Build frontend for production
 RUN npm run build
 

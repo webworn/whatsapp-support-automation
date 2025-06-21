@@ -203,15 +203,87 @@ export class MessageService {
     }));
   }
 
-  async updateMessage(userId: string, messageId: string, content: string): Promise<Message> {
+  async updateMessage(userId: string, messageId: string, updateData: {
+    content?: string;
+    whatsappMessageId?: string;
+    deliveryStatus?: string;
+    processingTimeMs?: number;
+    aiModelUsed?: string;
+    metadata?: string;
+  }): Promise<Message> {
     await this.findMessageById(userId, messageId);
 
     const message = await this.prisma.message.update({
       where: { id: messageId },
-      data: { content },
+      data: updateData,
     });
 
-    this.logger.log(`Message updated: ${messageId}`);
+    this.logger.log(`Message updated: ${messageId} with fields: ${Object.keys(updateData).join(', ')}`);
     return message;
+  }
+
+  // Keep backward compatibility with the old signature
+  async updateMessageContent(userId: string, messageId: string, content: string): Promise<Message> {
+    return this.updateMessage(userId, messageId, { content });
+  }
+
+  async getMessageDeliveryStatus(userId: string, messageId: string) {
+    const message = await this.prisma.message.findFirst({
+      where: { 
+        id: messageId,
+        conversation: { userId },
+      },
+      include: {
+        deliveryUpdates: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    return {
+      messageId: message.id,
+      whatsappMessageId: message.whatsappMessageId,
+      currentStatus: message.deliveryStatus,
+      deliveryHistory: message.deliveryUpdates.map(update => ({
+        status: update.status,
+        timestamp: update.timestamp,
+        recipientId: update.recipientId,
+        errorCode: update.errorCode,
+        errorMessage: update.errorMessage,
+      })),
+    };
+  }
+
+  async getDeliveryStats(userId: string, conversationId?: string) {
+    const where = conversationId 
+      ? { conversationId, conversation: { userId } }
+      : { conversation: { userId } };
+
+    const [total, pending, sent, delivered, read, failed] = await Promise.all([
+      this.prisma.message.count({ where: { ...where, senderType: { in: ['ai', 'agent'] } } }),
+      this.prisma.message.count({ where: { ...where, deliveryStatus: 'pending', senderType: { in: ['ai', 'agent'] } } }),
+      this.prisma.message.count({ where: { ...where, deliveryStatus: 'sent', senderType: { in: ['ai', 'agent'] } } }),
+      this.prisma.message.count({ where: { ...where, deliveryStatus: 'delivered', senderType: { in: ['ai', 'agent'] } } }),
+      this.prisma.message.count({ where: { ...where, deliveryStatus: 'read', senderType: { in: ['ai', 'agent'] } } }),
+      this.prisma.message.count({ where: { ...where, deliveryStatus: 'failed', senderType: { in: ['ai', 'agent'] } } }),
+    ]);
+
+    const deliveryRate = total > 0 ? Math.round(((sent + delivered + read) / total) * 100) : 0;
+    const readRate = total > 0 ? Math.round((read / total) * 100) : 0;
+
+    return {
+      total,
+      pending,
+      sent,
+      delivered,
+      read,
+      failed,
+      deliveryRate,
+      readRate,
+    };
   }
 }
