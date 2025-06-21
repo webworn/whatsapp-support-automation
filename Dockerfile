@@ -2,16 +2,16 @@
 FROM node:18-alpine AS frontend-builder
 
 # Set working directory for frontend
-WORKDIR /app
-
-# Copy frontend directory and its contents
-COPY frontend ./frontend
-
-# Change to frontend directory
 WORKDIR /app/frontend
+
+# Copy frontend package files first
+COPY frontend/package*.json ./
 
 # Install frontend dependencies
 RUN npm ci --prefer-offline --no-audit --progress=false
+
+# Copy all frontend source code
+COPY frontend/ ./
 
 # Set production environment variables for frontend build
 ENV NODE_ENV=production
@@ -23,8 +23,8 @@ ENV NEXT_PUBLIC_ENV=production
 # Build frontend for production
 RUN npm run build
 
-# Debug: Show build output
-RUN ls -la .next/
+# Verify build output
+RUN ls -la && ls -la .next/ && ls -la public/
 
 # Main application stage
 FROM node:18-alpine AS backend
@@ -62,12 +62,9 @@ COPY nest-cli.json ./
 RUN mkdir -p frontend/public frontend/.next
 
 # Copy built frontend from frontend-builder stage
+COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
 COPY --from=frontend-builder /app/frontend/.next ./frontend/.next
 COPY --from=frontend-builder /app/frontend/public ./frontend/public
-COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
-
-# Copy standalone server if it exists
-COPY --from=frontend-builder /app/frontend/.next/standalone ./frontend/standalone || true
 
 # Build the backend application
 RUN npm run build
