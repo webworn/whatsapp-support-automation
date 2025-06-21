@@ -20,11 +20,20 @@ ENV NEXT_PUBLIC_APP_NAME="WhatsApp AI SaaS Platform"
 ENV NEXT_PUBLIC_WS_URL=""
 ENV NEXT_PUBLIC_ENV=production
 
+# Ensure public directory exists (Next.js sometimes doesn't preserve empty dirs)
+RUN mkdir -p public && \
+    echo "=== Public directory ensured ==="
+
 # Build frontend for production
 RUN echo "=== Starting frontend build ===" && \
     npm run build && \
     echo "=== Frontend build completed ===" || \
     (echo "=== Frontend build failed ===" && exit 1)
+
+# Ensure public directory still exists after build
+RUN mkdir -p public && \
+    ls -la public && \
+    echo "=== Public directory verified ==="
 
 # Verify build output (non-fatal)
 RUN echo "=== Build verification ===" && \
@@ -68,10 +77,13 @@ COPY nest-cli.json ./
 # Create frontend directory structure
 RUN mkdir -p frontend/public frontend/.next
 
-# Copy built frontend from frontend-builder stage
+# Copy only the essential built files (skip public for now)
 COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
 COPY --from=frontend-builder /app/frontend/.next ./frontend/.next
-COPY --from=frontend-builder /app/frontend/public ./frontend/public
+
+# Create public directory with some default content
+RUN mkdir -p ./frontend/public && \
+    echo '{}' > ./frontend/public/placeholder.json
 
 # Build the backend application
 RUN npm run build
