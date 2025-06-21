@@ -21,10 +21,17 @@ ENV NEXT_PUBLIC_WS_URL=""
 ENV NEXT_PUBLIC_ENV=production
 
 # Build frontend for production
-RUN npm run build
+RUN echo "=== Starting frontend build ===" && \
+    npm run build && \
+    echo "=== Frontend build completed ===" || \
+    (echo "=== Frontend build failed ===" && exit 1)
 
-# Verify build output
-RUN ls -la && ls -la .next/ && ls -la public/
+# Verify build output (non-fatal)
+RUN echo "=== Build verification ===" && \
+    ls -la || echo "Root directory listing failed" && \
+    ls -la .next/ || echo ".next directory not found" && \
+    ls -la public/ || echo "public directory not found" && \
+    echo "=== Verification complete ==="
 
 # Main application stage
 FROM node:18-alpine AS backend

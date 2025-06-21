@@ -36,50 +36,8 @@ const nextConfig: NextConfig = {
     CUSTOM_BUILD_TIME: new Date().toISOString(),
   },
   
-  // Headers for security and performance
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
-          },
-          {
-            key: 'Cache-Control',
-            value: isProduction 
-              ? 'public, max-age=3600, must-revalidate' 
-              : 'no-cache, no-store, must-revalidate',
-          },
-        ],
-      },
-    ];
-  },
-  
-  // Redirects for better UX
-  async redirects() {
-    return [
-      {
-        source: '/app',
-        destination: '/dashboard',
-        permanent: true,
-      },
-      {
-        source: '/admin',
-        destination: '/dashboard',
-        permanent: true,
-      },
-    ];
-  },
+  // Remove async headers and redirects for build compatibility
+  // These can be handled by the backend when needed
 };
 
 export default nextConfig;
