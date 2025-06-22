@@ -57,8 +57,7 @@ export default function LoginPage() {
       // Clear form data for security
       setFormData({ email: '', password: '' });
       
-      // Force redirect using window.location for more reliable navigation
-      window.location.href = '/dashboard';
+      // Don't manually redirect - the useEffect will handle it when isAuthenticated changes
     } catch (err) {
       // Don't log sensitive information
       console.error('Login failed');

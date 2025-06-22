@@ -21,12 +21,13 @@ interface AuthState {
   register: (email: string, password: string, businessName: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
+  initializeAuth: () => void;
   updateProfile: (data: { businessName?: string; whatsappPhoneNumber?: string }) => Promise<void>;
 }
 
 export const useAuth = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isLoading: false,
       isAuthenticated: false,
@@ -104,14 +105,27 @@ export const useAuth = create<AuthState>()(
         }
       },
 
+      initializeAuth: () => {
+        const token = Cookies.get('whatsapp_ai_token');
+        const state = get();
+        
+        // If we have a token but no authentication state, fetch user
+        if (token && !state.isAuthenticated && !state.isLoading) {
+          set({ isLoading: true });
+          get().fetchUser();
+        } else if (!token && state.isAuthenticated) {
+          // If no token but we think we're authenticated, clear state
+          set({ user: null, isAuthenticated: false, isLoading: false });
+        }
+      },
+
       fetchUser: async () => {
         const token = Cookies.get('whatsapp_ai_token');
         if (!token) {
-          set({ isAuthenticated: false, user: null });
+          set({ isAuthenticated: false, user: null, isLoading: false });
           return;
         }
 
-        set({ isLoading: true });
         try {
           const response = await authApi.me();
           set({ 
@@ -119,7 +133,8 @@ export const useAuth = create<AuthState>()(
             isAuthenticated: true, 
             isLoading: false 
           });
-        } catch {
+        } catch (error) {
+          console.warn('Failed to fetch user, clearing auth state:', error.response?.status);
           // Token is invalid, clear it
           Cookies.remove('whatsapp_ai_token');
           set({ 

@@ -10,18 +10,23 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, fetchUser } = useAuth();
+  const { isAuthenticated, isLoading, initializeAuth } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    // Fetch user data on mount to verify authentication
-    fetchUser();
-  }, [fetchUser]);
+    // Initialize auth state on mount
+    initializeAuth();
+  }, [initializeAuth]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
-    }
+    // Add a small delay to ensure auth initialization completes
+    const timer = setTimeout(() => {
+      if (!isLoading && !isAuthenticated) {
+        router.push('/login');
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [isAuthenticated, isLoading, router]);
 
   if (isLoading) {
