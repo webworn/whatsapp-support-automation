@@ -361,34 +361,88 @@ export class WebhookService {
     }
   }
 
-  async getWebhookLogs(limit: number = 50) {
-    return this.prisma.webhookLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    });
+  async getWebhookLogs(userId?: string, limit: number = 50) {
+    try {
+      // For now, return mock data based on recent messages since we don't have webhookLog table
+      const recentMessages = await this.prisma.message.findMany({
+        where: userId ? { conversation: { userId } } : undefined,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          conversation: {
+            select: {
+              customerPhone: true,
+              customerName: true,
+            }
+          }
+        },
+      });
+
+      return {
+        logs: recentMessages.map(msg => ({
+          id: msg.id,
+          source: 'whatsapp-business',
+          payload: JSON.stringify({
+            from: msg.conversation.customerPhone,
+            content: msg.content,
+            type: msg.messageType,
+          }),
+          isValid: true,
+          processed: true,
+          error: null,
+          createdAt: msg.createdAt.toISOString(),
+        }))
+      };
+    } catch (error) {
+      this.logger.error('Failed to get webhook logs', error);
+      return { logs: [] };
+    }
   }
 
-  async getWebhookStats() {
-    const [total, processed, failed, recent] = await Promise.all([
-      this.prisma.webhookLog.count(),
-      this.prisma.webhookLog.count({ where: { processed: true } }),
-      this.prisma.webhookLog.count({ where: { processed: false } }),
-      this.prisma.webhookLog.count({
-        where: {
-          createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+  async getWebhookStats(userId?: string) {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const [totalMessages, todayMessages, failedMessages] = await Promise.all([
+        this.prisma.message.count({
+          where: userId ? { conversation: { userId } } : undefined,
+        }),
+        this.prisma.message.count({
+          where: {
+            ...(userId ? { conversation: { userId } } : {}),
+            createdAt: { gte: today },
           },
-        },
-      }),
-    ]);
+        }),
+        this.prisma.message.count({
+          where: {
+            ...(userId ? { conversation: { userId } } : {}),
+            deliveryStatus: 'failed',
+          },
+        }),
+      ]);
 
-    return {
-      total,
-      processed,
-      failed,
-      recent,
-      successRate: total > 0 ? Math.round((processed / total) * 100) : 0,
-    };
+      const successRate = totalMessages > 0 
+        ? Math.round(((totalMessages - failedMessages) / totalMessages) * 100)
+        : 100;
+
+      return {
+        total: totalMessages,
+        processed: totalMessages - failedMessages,
+        failed: failedMessages,
+        recent: todayMessages,
+        successRate,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get webhook stats', error);
+      return {
+        total: 0,
+        processed: 0,
+        failed: 0,
+        recent: 0,
+        successRate: 100,
+      };
+    }
   }
 
   private async generateAiResponse(
@@ -504,94 +558,6 @@ export class WebhookService {
     }
   }
 
-  // Get webhook logs for dashboard
-  async getWebhookLogs(userId?: string, limit: number = 50) {
-    try {
-      // In a real implementation, you'd have a webhook_logs table
-      // For now, return mock data based on recent messages
-      const recentMessages = await this.prisma.message.findMany({
-        where: userId ? { conversation: { userId } } : undefined,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          conversation: {
-            select: {
-              customerPhone: true,
-              customerName: true,
-            }
-          }
-        },
-      });
-
-      return recentMessages.map(msg => ({
-        id: msg.id,
-        source: 'whatsapp-business',
-        payload: JSON.stringify({
-          from: msg.conversation.customerPhone,
-          content: msg.content,
-          type: msg.messageType,
-        }),
-        isValid: true,
-        processed: true,
-        error: null,
-        createdAt: msg.createdAt,
-        phoneNumber: msg.conversation.customerPhone,
-        customerName: msg.conversation.customerName,
-      }));
-    } catch (error) {
-      this.logger.error('Failed to get webhook logs', error);
-      return [];
-    }
-  }
-
-  // Get webhook statistics for dashboard
-  async getWebhookStats(userId?: string) {
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const [totalMessages, todayMessages, failedMessages] = await Promise.all([
-        this.prisma.message.count({
-          where: userId ? { conversation: { userId } } : undefined,
-        }),
-        this.prisma.message.count({
-          where: {
-            ...(userId ? { conversation: { userId } } : {}),
-            createdAt: { gte: today },
-          },
-        }),
-        this.prisma.message.count({
-          where: {
-            ...(userId ? { conversation: { userId } } : {}),
-            deliveryStatus: 'failed',
-          },
-        }),
-      ]);
-
-      const successRate = totalMessages > 0 
-        ? Math.round(((totalMessages - failedMessages) / totalMessages) * 100)
-        : 100;
-
-      return {
-        total: totalMessages,
-        processed: totalMessages - failedMessages,
-        failed: failedMessages,
-        successRate,
-        todayCount: todayMessages,
-        avgResponseTime: '2.3s', // Mock average
-      };
-    } catch (error) {
-      this.logger.error('Failed to get webhook stats', error);
-      return {
-        total: 0,
-        processed: 0,
-        failed: 0,
-        successRate: 100,
-        todayCount: 0,
-        avgResponseTime: '0s',
-      };
-    }
-  }
 
   // Get webhook service health status
   async getHealthStatus() {

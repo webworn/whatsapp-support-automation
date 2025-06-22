@@ -102,14 +102,14 @@ export class WebhookController {
     @CurrentUser() user?: User,
   ) {
     try {
-      const logs = await this.webhookService.getWebhookLogs(
+      const logsData = await this.webhookService.getWebhookLogs(
         user?.id,
         parseInt(limit || '50')
       );
       return {
         status: 'success',
-        data: logs,
-        total: logs.length,
+        data: logsData,
+        total: logsData.logs.length,
       };
     } catch (error) {
       this.logger.error('Failed to get webhook logs', error);
@@ -237,36 +237,4 @@ export class WebhookController {
     }
   }
 
-  // Webhook management endpoints (protected)
-  @Get('logs')
-  @UseGuards(JwtAuthGuard)
-  async getWebhookLogs(
-    @CurrentUser() user: User,
-    @Query('limit') limit?: string,
-  ) {
-    const logs = await this.webhookService.getWebhookLogs(parseInt(limit || '50'));
-    return { logs };
-  }
-
-  @Get('stats')
-  @UseGuards(JwtAuthGuard)
-  async getWebhookStats(@CurrentUser() user: User) {
-    const stats = await this.webhookService.getWebhookStats();
-    return { stats };
-  }
-
-  @Get('health')
-  @Public()
-  async webhookHealth() {
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      service: 'WhatsApp Webhook',
-      endpoints: {
-        verification: 'GET /webhooks/whatsapp-business',
-        messages: 'POST /webhooks/whatsapp-business',
-        test: 'POST /webhooks/whatsapp-business/test',
-      },
-    };
-  }
 }
