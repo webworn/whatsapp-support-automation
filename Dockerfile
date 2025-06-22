@@ -15,9 +15,9 @@ COPY frontend/ ./
 
 # Set production environment variables for frontend build
 ENV NODE_ENV=production
-ENV NEXT_PUBLIC_API_URL=""
+ENV NEXT_PUBLIC_API_URL="https://whatsapp-support-automation-production.up.railway.app"
 ENV NEXT_PUBLIC_APP_NAME="WhatsApp AI SaaS Platform"
-ENV NEXT_PUBLIC_WS_URL=""
+ENV NEXT_PUBLIC_WS_URL="wss://whatsapp-support-automation-production.up.railway.app"
 ENV NEXT_PUBLIC_ENV=production
 
 # Ensure public directory exists (Next.js sometimes doesn't preserve empty dirs)
