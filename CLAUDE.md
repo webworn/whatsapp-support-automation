@@ -11,6 +11,59 @@
 **📈 STATUS**: 100% Complete - Landing page, authentication, AI integration, and WhatsApp API fully functional
 **📋 DOCUMENTATION**: Complete with PROGRESS_LOG.md and RESUME_GUIDE.md for agent continuation
 
+## 🌐 System Endpoints
+
+### 🚀 Production (Railway)
+**Base URL**: https://whatsapp-support-automation-production.up.railway.app
+
+#### Frontend Pages
+- **Landing Page**: https://whatsapp-support-automation-production.up.railway.app/
+- **Login**: https://whatsapp-support-automation-production.up.railway.app/login
+- **Register**: https://whatsapp-support-automation-production.up.railway.app/register
+- **Dashboard**: https://whatsapp-support-automation-production.up.railway.app/dashboard
+- **Conversations**: https://whatsapp-support-automation-production.up.railway.app/dashboard/conversations
+- **Settings**: https://whatsapp-support-automation-production.up.railway.app/dashboard/settings
+- **Webhooks**: https://whatsapp-support-automation-production.up.railway.app/dashboard/webhooks
+
+#### API Endpoints
+- **Health Check**: https://whatsapp-support-automation-production.up.railway.app/health
+- **Auth Login**: https://whatsapp-support-automation-production.up.railway.app/api/auth/login
+- **Auth Register**: https://whatsapp-support-automation-production.up.railway.app/api/auth/register
+- **WhatsApp Webhook**: https://whatsapp-support-automation-production.up.railway.app/api/webhooks/whatsapp-business
+- **Conversations API**: https://whatsapp-support-automation-production.up.railway.app/api/conversations
+- **Debug Endpoints**: 
+  - https://whatsapp-support-automation-production.up.railway.app/db-test
+  - https://whatsapp-support-automation-production.up.railway.app/test-llm
+  - https://whatsapp-support-automation-production.up.railway.app/test-whatsapp
+
+### 💻 Local Development
+**Base URL**: http://localhost:3000
+
+#### Frontend Pages
+- **Landing Page**: http://localhost:3000/
+- **Login**: http://localhost:3000/login
+- **Register**: http://localhost:3000/register
+- **Dashboard**: http://localhost:3000/dashboard
+- **Conversations**: http://localhost:3000/dashboard/conversations
+- **Settings**: http://localhost:3000/dashboard/settings
+- **Webhooks**: http://localhost:3000/dashboard/webhooks
+
+#### API Endpoints
+- **Health Check**: http://localhost:3000/health
+- **Auth Login**: http://localhost:3000/api/auth/login
+- **Auth Register**: http://localhost:3000/api/auth/register
+- **WhatsApp Webhook**: http://localhost:3000/api/webhooks/whatsapp-business
+- **Conversations API**: http://localhost:3000/api/conversations
+- **Debug Endpoints**: 
+  - http://localhost:3000/db-test
+  - http://localhost:3000/test-llm
+  - http://localhost:3000/test-whatsapp
+
+### 📱 WhatsApp Integration
+- **Webhook URL**: `{BASE_URL}/api/webhooks/whatsapp-business`
+- **Verification URL**: `{BASE_URL}/api/webhooks/whatsapp-business`
+- **Verify Token**: `whatsapp_ai_verify`
+
 ### Technology Stack ✅ PRODUCTION
 - **Backend**: NestJS + TypeScript + Express.js webhook server ✅ LIVE
 - **Database**: PostgreSQL (conversations) + Redis (sessions/cache) ✅ CONFIGURED

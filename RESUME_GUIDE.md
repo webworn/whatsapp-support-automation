@@ -324,8 +324,27 @@ try {
 
 ## 📞 Support Resources
 
+### 🚀 Production URLs (Railway)
 - **Health Check**: https://whatsapp-support-automation-production.up.railway.app/health
 - **Landing Page**: https://whatsapp-support-automation-production.up.railway.app/
+- **Login**: https://whatsapp-support-automation-production.up.railway.app/login
+- **Dashboard**: https://whatsapp-support-automation-production.up.railway.app/dashboard
+- **Debug Endpoints**:
+  - Database Test: https://whatsapp-support-automation-production.up.railway.app/db-test
+  - LLM Test: https://whatsapp-support-automation-production.up.railway.app/test-llm
+  - WhatsApp Test: https://whatsapp-support-automation-production.up.railway.app/test-whatsapp
+
+### 💻 Local Development URLs
+- **Health Check**: http://localhost:3000/health
+- **Landing Page**: http://localhost:3000/
+- **Login**: http://localhost:3000/login
+- **Dashboard**: http://localhost:3000/dashboard
+- **Debug Endpoints**:
+  - Database Test: http://localhost:3000/db-test
+  - LLM Test: http://localhost:3000/test-llm
+  - WhatsApp Test: http://localhost:3000/test-whatsapp
+
+### 📚 Documentation
 - **Railway Dashboard**: Check deployment logs and environment variables
 - **Project Documentation**: PROGRESS_LOG.md (comprehensive), CLAUDE.md (instructions)
 - **User Flow**: strategic-planning/USER-FLOW-ARCHITECTURE.md
