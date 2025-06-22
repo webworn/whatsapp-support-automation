@@ -35,7 +35,7 @@ export const useAuth = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await authApi.login({ email, password });
-          const { user, accessToken } = response.data;
+          const { user, accessToken } = response.data.data;
           
           // Store token in cookie
           Cookies.set('whatsapp_ai_token', accessToken, { 
@@ -60,7 +60,7 @@ export const useAuth = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await authApi.register({ email, password, businessName });
-          const { user, accessToken } = response.data;
+          const { user, accessToken } = response.data.data;
           
           // Store token in cookie
           Cookies.set('whatsapp_ai_token', accessToken, { 
