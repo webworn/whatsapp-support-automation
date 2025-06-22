@@ -12,17 +12,21 @@ export class FrontendController {
   @Get(['dashboard*', 'login', 'register', '', '/'])
   serveFrontend(@Req() req: Request, @Res() res: Response) {
     try {
-      // Check both locations: project root (local dev) and frontend dir (Docker production)
-      const projectRoot = join(__dirname, '..');
-      const localDevPath = join(projectRoot, '.next', 'standalone', '.next', 'server', 'app');
-      const dockerProdPath = join(projectRoot, 'frontend', '.next', 'standalone', '.next', 'server', 'app');
+      // Determine project root based on whether we're in dev or production
+      const isDev = process.env.NODE_ENV !== 'production';
+      const projectRoot = isDev ? process.cwd() : join(__dirname, '..');
+      
+      // Path resolution for different environments
+      const devPath = join(projectRoot, 'frontend', '.next', 'standalone', '.next', 'server', 'app');
+      const prodPath = join(projectRoot, 'frontend', '.next', 'standalone', '.next', 'server', 'app');
       
       this.logger.log(`Requested path: ${req.path}`);
-      this.logger.log(`Checking local dev path: ${localDevPath}`);
-      this.logger.log(`Checking docker prod path: ${dockerProdPath}`);
+      this.logger.log(`Environment: ${isDev ? 'development' : 'production'}`);
+      this.logger.log(`Project root: ${projectRoot}`);
+      this.logger.log(`Checking frontend path: ${devPath}`);
       
-      // Determine which path to use
-      const standaloneAppDir = existsSync(localDevPath) ? localDevPath : dockerProdPath;
+      // Use the frontend path (same for both dev and prod now)
+      const standaloneAppDir = devPath;
       
       // Map routes to HTML files
       let htmlFile = '';
@@ -46,7 +50,7 @@ export class FrontendController {
         this.logger.log(`Looking for HTML file: ${htmlFile}`);
       } else {
         this.logger.warn(`Frontend standalone app directory does not exist`);
-        this.logger.warn(`Checked paths: ${localDevPath} and ${dockerProdPath}`);
+        this.logger.warn(`Checked path: ${devPath}`);
       }
       
       // Try to serve Next.js files first
@@ -91,10 +95,10 @@ export class FrontendController {
   // API health check that includes frontend status
   @Get('health')
   healthCheck(@Res() res: Response) {
-    const projectRoot = join(__dirname, '..');
-    const localDevPath = join(projectRoot, '.next');
-    const dockerProdPath = join(projectRoot, 'frontend', '.next');
-    const frontendBuilt = existsSync(localDevPath) || existsSync(dockerProdPath);
+    const isDev = process.env.NODE_ENV !== 'production';
+    const projectRoot = isDev ? process.cwd() : join(__dirname, '..');
+    const frontendPath = join(projectRoot, 'frontend', '.next');
+    const frontendBuilt = existsSync(frontendPath);
     
     const health = {
       status: 'healthy',
