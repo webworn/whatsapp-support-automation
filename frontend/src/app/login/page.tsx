@@ -57,7 +57,10 @@ export default function LoginPage() {
       // Clear form data for security
       setFormData({ email: '', password: '' });
       
-      // Don't manually redirect - the useEffect will handle it when isAuthenticated changes
+      // Explicit redirect after successful login to avoid timing issues
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 100); // Small delay to ensure state is updated
     } catch (err) {
       // Don't log sensitive information
       console.error('Login failed');
