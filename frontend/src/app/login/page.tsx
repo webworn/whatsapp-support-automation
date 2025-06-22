@@ -58,9 +58,10 @@ export default function LoginPage() {
       setFormData({ email: '', password: '' });
       
       // Explicit redirect after successful login to avoid timing issues
+      // Use slightly longer delay than ProtectedRoute (which uses 100ms) to avoid race condition
       setTimeout(() => {
         router.push('/dashboard');
-      }, 100); // Small delay to ensure state is updated
+      }, 150); // Small delay to ensure state is updated
     } catch (err) {
       // Don't log sensitive information
       console.error('Login failed');
