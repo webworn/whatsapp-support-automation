@@ -37,6 +37,11 @@ import { FrontendController } from './frontend.controller';
         : join(process.cwd(), 'frontend', '.next', 'static'),
       serveRoot: '/_next/static',
       exclude: ['/api*'],
+      serveStaticOptions: {
+        cacheControl: true,
+        maxAge: '1d',
+        etag: true,
+      },
     }),
     ServeStaticModule.forRoot({
       rootPath: process.env.NODE_ENV === 'production'
@@ -44,6 +49,11 @@ import { FrontendController } from './frontend.controller';
         : join(process.cwd(), 'frontend', 'public'),
       serveRoot: '/public',
       exclude: ['/api*'],
+      serveStaticOptions: {
+        cacheControl: true,
+        maxAge: '1h',
+        etag: true,
+      },
     }),
 
     // Core modules

@@ -77,13 +77,17 @@ COPY nest-cli.json ./
 # Create frontend directory structure
 RUN mkdir -p frontend/public frontend/.next
 
-# Copy only the essential built files (skip public for now)
+# Copy the complete built frontend files
 COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
 COPY --from=frontend-builder /app/frontend/.next ./frontend/.next
+COPY --from=frontend-builder /app/frontend/public ./frontend/public
 
-# Create public directory with some default content
-RUN mkdir -p ./frontend/public && \
-    echo '{}' > ./frontend/public/placeholder.json
+# Verify critical static files exist
+RUN echo "=== Verifying static files ===" && \
+    ls -la ./frontend/.next/static/ && \
+    ls -la ./frontend/.next/static/chunks/ && \
+    ls -la ./frontend/public/ && \
+    echo "=== Static files verification complete ==="
 
 # Build the backend application
 RUN npm run build
