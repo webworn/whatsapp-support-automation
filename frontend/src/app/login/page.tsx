@@ -33,22 +33,39 @@ export default function LoginPage() {
     setError('');
     setSuccess('');
 
-    if (!formData.email || !formData.password) {
+    // Input validation and sanitization
+    const email = formData.email.trim().toLowerCase();
+    const password = formData.password;
+
+    if (!email || !password) {
       setError('Please fill in all fields');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
       return;
     }
 
     try {
       setSuccess('Signing in...');
-      await login(formData.email, formData.password);
+      await login(email, password);
       setSuccess('Login successful! Redirecting...');
+      
+      // Clear form data for security
+      setFormData({ email: '', password: '' });
       
       // Force redirect using window.location for more reliable navigation
       window.location.href = '/dashboard';
     } catch (err) {
-      console.error('Login error:', err);
+      // Don't log sensitive information
+      console.error('Login failed');
       setError((err as Error).message || 'Login failed');
       setSuccess('');
+      // Clear password field on error for security
+      setFormData(prev => ({ ...prev, password: '' }));
     }
   };
 

@@ -26,16 +26,23 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle auth errors
+// Response interceptor to handle auth errors and security
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       // Clear token and redirect to login
       Cookies.remove('whatsapp_ai_token');
+      // Clear any persisted auth state
+      localStorage.removeItem('whatsapp-ai-auth');
       if (typeof window !== 'undefined') {
+        console.warn('Session expired. Redirecting to login.');
         window.location.href = '/login';
       }
+    }
+    // Log security-relevant errors without exposing sensitive data
+    if (error.response?.status >= 400) {
+      console.warn(`API Error ${error.response.status}: ${error.response.statusText}`);
     }
     return Promise.reject(error);
   }

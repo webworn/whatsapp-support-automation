@@ -37,11 +37,12 @@ export const useAuth = create<AuthState>()(
           const response = await authApi.login({ email, password });
           const { user, accessToken } = response.data.data;
           
-          // Store token in cookie
+          // Store token in secure cookie
           Cookies.set('whatsapp_ai_token', accessToken, { 
-            expires: 7, // 7 days
+            expires: 1, // 1 day for security
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict'
+            sameSite: 'strict',
+            httpOnly: false, // Must be false for JS access, but we'll clear on suspicious activity
           });
           
           set({ 
@@ -51,6 +52,8 @@ export const useAuth = create<AuthState>()(
           });
         } catch (error) {
           set({ isLoading: false });
+          // Clear any existing tokens on login failure for security
+          Cookies.remove('whatsapp_ai_token');
           const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Login failed';
           throw new Error(errorMessage);
         }
@@ -62,11 +65,12 @@ export const useAuth = create<AuthState>()(
           const response = await authApi.register({ email, password, businessName });
           const { user, accessToken } = response.data.data;
           
-          // Store token in cookie
+          // Store token in secure cookie
           Cookies.set('whatsapp_ai_token', accessToken, { 
-            expires: 7, // 7 days
+            expires: 1, // 1 day for security
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict'
+            sameSite: 'strict',
+            httpOnly: false, // Must be false for JS access, but we'll clear on suspicious activity
           });
           
           set({ 
@@ -76,6 +80,8 @@ export const useAuth = create<AuthState>()(
           });
         } catch (error) {
           set({ isLoading: false });
+          // Clear any existing tokens on registration failure for security
+          Cookies.remove('whatsapp_ai_token');
           const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Registration failed';
           throw new Error(errorMessage);
         }
