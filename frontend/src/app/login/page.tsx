@@ -42,10 +42,11 @@ export default function LoginPage() {
       setSuccess('Signing in...');
       await login(formData.email, formData.password);
       setSuccess('Login successful! Redirecting...');
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1000);
+      
+      // Force redirect using window.location for more reliable navigation
+      window.location.href = '/dashboard';
     } catch (err) {
+      console.error('Login error:', err);
       setError((err as Error).message || 'Login failed');
       setSuccess('');
     }

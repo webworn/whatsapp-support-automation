@@ -35,6 +35,12 @@
 # Start development server
 npm run start:dev
 
+# Test locally before deploying
+# 1. Test login at: http://localhost:3000/login
+# 2. Use any email/password (mock data in dev)
+# 3. Verify redirect to dashboard works
+# 4. Test all dashboard features
+
 # Run tests
 npm run test        # Unit tests
 npm run test:e2e    # Integration tests
