@@ -12,14 +12,17 @@ export class FrontendController {
   @Get(['dashboard*', 'login', 'register', '', '/'])
   serveFrontend(@Req() req: Request, @Res() res: Response) {
     try {
-      // The frontend builds to .next in the project root, not in frontend subdirectory
+      // Check both locations: project root (local dev) and frontend dir (Docker production)
       const projectRoot = join(__dirname, '..');
-      const frontendPath = join(projectRoot, '.next');
-      this.logger.log(`Serving frontend from: ${frontendPath}`);
-      this.logger.log(`Requested path: ${req.path}`);
+      const localDevPath = join(projectRoot, '.next', 'standalone', '.next', 'server', 'app');
+      const dockerProdPath = join(projectRoot, 'frontend', '.next', 'standalone', '.next', 'server', 'app');
       
-      // Check for Next.js build files in correct locations (standalone build)
-      const standaloneAppDir = join(projectRoot, '.next', 'standalone', '.next', 'server', 'app');
+      this.logger.log(`Requested path: ${req.path}`);
+      this.logger.log(`Checking local dev path: ${localDevPath}`);
+      this.logger.log(`Checking docker prod path: ${dockerProdPath}`);
+      
+      // Determine which path to use
+      const standaloneAppDir = existsSync(localDevPath) ? localDevPath : dockerProdPath;
       
       // Map routes to HTML files
       let htmlFile = '';
@@ -37,11 +40,13 @@ export class FrontendController {
       ];
       
       // Log available frontend files for debugging
+      this.logger.log(`Using frontend path: ${standaloneAppDir}`);
       if (existsSync(standaloneAppDir)) {
-        this.logger.log(`Frontend standalone app directory exists: ${standaloneAppDir}`);
+        this.logger.log(`Frontend standalone app directory exists`);
         this.logger.log(`Looking for HTML file: ${htmlFile}`);
       } else {
-        this.logger.warn(`Frontend standalone app directory does not exist: ${standaloneAppDir}`);
+        this.logger.warn(`Frontend standalone app directory does not exist`);
+        this.logger.warn(`Checked paths: ${localDevPath} and ${dockerProdPath}`);
       }
       
       // Try to serve Next.js files first
@@ -86,8 +91,10 @@ export class FrontendController {
   // API health check that includes frontend status
   @Get('health')
   healthCheck(@Res() res: Response) {
-    const frontendPath = join(__dirname, '..', '.next');
-    const frontendBuilt = existsSync(frontendPath);
+    const projectRoot = join(__dirname, '..');
+    const localDevPath = join(projectRoot, '.next');
+    const dockerProdPath = join(projectRoot, 'frontend', '.next');
+    const frontendBuilt = existsSync(localDevPath) || existsSync(dockerProdPath);
     
     const health = {
       status: 'healthy',
