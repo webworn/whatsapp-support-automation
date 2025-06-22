@@ -54,8 +54,14 @@ export default function WebhooksPage() {
         webhooksApi.getStats(),
       ]);
 
-      setLogs(logsResponse.data.logs || []);
-      setStats(statsResponse.data.stats);
+      setLogs(logsResponse.data?.logs || []);
+      setStats(statsResponse.data?.stats || {
+        total: 0,
+        processed: 0,
+        failed: 0,
+        recent: 0,
+        successRate: 0,
+      });
     } catch (err) {
       console.error('Failed to fetch webhook data:', err);
       setError('Failed to load webhook data');

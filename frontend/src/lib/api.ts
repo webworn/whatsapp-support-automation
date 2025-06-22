@@ -50,17 +50,20 @@ api.interceptors.response.use(
 
 // Helper function to handle mock fallback
 const withMockFallback = async <T>(apiCall: () => Promise<any>, mockCall: () => Promise<T>): Promise<any> => {
-  if (USE_MOCK_DATA) {
-    try {
-      return await apiCall();
-    } catch (error) {
+  // Always try the real API first, but have robust fallback to mock data
+  try {
+    return await apiCall();
+  } catch (error) {
+    if (USE_MOCK_DATA) {
       console.warn('API call failed, using mock data:', error);
       // Convert mock data to axios response format
       const mockData = await mockCall();
       return { data: mockData };
+    } else {
+      // In production, re-throw the error
+      throw error;
     }
   }
-  return await apiCall();
 };
 
 // Auth API

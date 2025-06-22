@@ -55,7 +55,12 @@ export default function DashboardPage() {
         totalMessages: conversationStats.data.totalMessages || 0,
         aiResponseRate: analytics.data.aiResponseRate || 0,
         averageResponseTime: analytics.data.averageResponseTime || 0,
-        webhookStats: webhookStats.data.stats,
+        webhookStats: webhookStats.data?.stats || {
+          total: 0,
+          processed: 0,
+          failed: 0,
+          successRate: 0,
+        },
       });
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
@@ -177,9 +182,9 @@ export default function DashboardPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.webhookStats.successRate || 0}%</div>
+            <div className="text-2xl font-bold">{stats?.webhookStats?.successRate || 0}%</div>
             <p className="text-xs text-muted-foreground">
-              {stats?.webhookStats.processed || 0} / {stats?.webhookStats.total || 0} processed
+              {stats?.webhookStats?.processed || 0} / {stats?.webhookStats?.total || 0} processed
             </p>
           </CardContent>
         </Card>

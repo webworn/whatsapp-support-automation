@@ -13,7 +13,8 @@ const nextConfig: NextConfig = {
   
   // Build configuration
   distDir: '.next',
-  output: 'standalone', // Back to standalone for better compatibility
+  // Removed standalone output to fix static file serving issues
+  // output: 'standalone', 
   // trailingSlash: true,
   
   // Image optimization - disable for Railway deployment simplicity
