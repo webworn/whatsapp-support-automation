@@ -23,7 +23,7 @@ import {
   WebhookVerificationDto 
 } from './dto/webhook.dto';
 
-@Controller('webhooks')
+@Controller('api/webhooks')
 export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
 
@@ -89,6 +89,79 @@ export class WebhookController {
       return {
         status: 'error',
         message: 'Failed to process webhook',
+        error: error.message,
+      };
+    }
+  }
+
+  // Get webhook logs
+  @Get('logs')
+  @UseGuards(JwtAuthGuard)
+  async getWebhookLogs(
+    @Query('limit') limit?: string,
+    @CurrentUser() user?: User,
+  ) {
+    try {
+      const logs = await this.webhookService.getWebhookLogs(
+        user?.id,
+        parseInt(limit || '50')
+      );
+      return {
+        status: 'success',
+        data: logs,
+        total: logs.length,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get webhook logs', error);
+      return {
+        status: 'error',
+        message: 'Failed to retrieve webhook logs',
+        error: error.message,
+      };
+    }
+  }
+
+  // Get webhook statistics
+  @Get('stats')
+  @UseGuards(JwtAuthGuard)
+  async getWebhookStats(@CurrentUser() user?: User) {
+    try {
+      const stats = await this.webhookService.getWebhookStats(user?.id);
+      return {
+        status: 'success',
+        data: {
+          stats,
+          timestamp: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to get webhook stats', error);
+      return {
+        status: 'error',
+        message: 'Failed to retrieve webhook statistics',
+        error: error.message,
+      };
+    }
+  }
+
+  // Webhook health check
+  @Get('health')
+  @Public()
+  async getWebhookHealth() {
+    try {
+      const health = await this.webhookService.getHealthStatus();
+      return {
+        status: 'healthy',
+        service: 'webhook',
+        timestamp: new Date().toISOString(),
+        ...health,
+      };
+    } catch (error) {
+      this.logger.error('Webhook health check failed', error);
+      return {
+        status: 'unhealthy',
+        service: 'webhook',
+        timestamp: new Date().toISOString(),
         error: error.message,
       };
     }

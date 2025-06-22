@@ -147,12 +147,12 @@ export default function WebhooksPage() {
               </label>
               <div className="flex items-center gap-2">
                 <code className="flex-1 px-3 py-2 bg-gray-100 border rounded text-sm">
-                  {process.env.NEXT_PUBLIC_API_URL}/api/webhook/whatsapp
+                  {process.env.NEXT_PUBLIC_API_URL}/api/webhooks/whatsapp-business
                 </code>
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => copyToClipboard(`${process.env.NEXT_PUBLIC_API_URL}/api/webhook/whatsapp`)}
+                  onClick={() => copyToClipboard(`${process.env.NEXT_PUBLIC_API_URL}/api/webhooks/whatsapp-business`)}
                 >
                   <Copy className="h-4 w-4" />
                 </Button>
@@ -165,7 +165,7 @@ export default function WebhooksPage() {
               </label>
               <div className="flex items-center gap-2">
                 <code className="flex-1 px-3 py-2 bg-gray-100 border rounded text-sm">
-                  GET /api/webhook/whatsapp
+                  GET /api/webhooks/whatsapp-business
                 </code>
                 <Button 
                   variant="outline" 

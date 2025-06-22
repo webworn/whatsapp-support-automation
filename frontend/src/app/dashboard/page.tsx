@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { conversationsApi, webhooksApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquare, Users, Activity, Zap } from 'lucide-react';
+import OnboardingFlow from '@/components/dashboard/OnboardingFlow';
 
 interface DashboardStats {
   totalConversations: number;
@@ -25,10 +26,19 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
+    checkOnboardingStatus();
   }, []);
+
+  const checkOnboardingStatus = () => {
+    const onboardingCompleted = localStorage.getItem('whatsapp-ai-onboarding-completed');
+    if (!onboardingCompleted) {
+      setShowOnboarding(true);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -96,6 +106,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Onboarding Flow */}
+      {showOnboarding && (
+        <OnboardingFlow
+          onComplete={() => setShowOnboarding(false)}
+          onClose={() => setShowOnboarding(false)}
+        />
+      )}
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">

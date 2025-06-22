@@ -503,4 +503,150 @@ export class WebhookService {
       }
     }
   }
+
+  // Get webhook logs for dashboard
+  async getWebhookLogs(userId?: string, limit: number = 50) {
+    try {
+      // In a real implementation, you'd have a webhook_logs table
+      // For now, return mock data based on recent messages
+      const recentMessages = await this.prisma.message.findMany({
+        where: userId ? { conversation: { userId } } : undefined,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          conversation: {
+            select: {
+              customerPhone: true,
+              customerName: true,
+            }
+          }
+        },
+      });
+
+      return recentMessages.map(msg => ({
+        id: msg.id,
+        source: 'whatsapp-business',
+        payload: JSON.stringify({
+          from: msg.conversation.customerPhone,
+          content: msg.content,
+          type: msg.messageType,
+        }),
+        isValid: true,
+        processed: true,
+        error: null,
+        createdAt: msg.createdAt,
+        phoneNumber: msg.conversation.customerPhone,
+        customerName: msg.conversation.customerName,
+      }));
+    } catch (error) {
+      this.logger.error('Failed to get webhook logs', error);
+      return [];
+    }
+  }
+
+  // Get webhook statistics for dashboard
+  async getWebhookStats(userId?: string) {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const [totalMessages, todayMessages, failedMessages] = await Promise.all([
+        this.prisma.message.count({
+          where: userId ? { conversation: { userId } } : undefined,
+        }),
+        this.prisma.message.count({
+          where: {
+            ...(userId ? { conversation: { userId } } : {}),
+            createdAt: { gte: today },
+          },
+        }),
+        this.prisma.message.count({
+          where: {
+            ...(userId ? { conversation: { userId } } : {}),
+            deliveryStatus: 'failed',
+          },
+        }),
+      ]);
+
+      const successRate = totalMessages > 0 
+        ? Math.round(((totalMessages - failedMessages) / totalMessages) * 100)
+        : 100;
+
+      return {
+        total: totalMessages,
+        processed: totalMessages - failedMessages,
+        failed: failedMessages,
+        successRate,
+        todayCount: todayMessages,
+        avgResponseTime: '2.3s', // Mock average
+      };
+    } catch (error) {
+      this.logger.error('Failed to get webhook stats', error);
+      return {
+        total: 0,
+        processed: 0,
+        failed: 0,
+        successRate: 100,
+        todayCount: 0,
+        avgResponseTime: '0s',
+      };
+    }
+  }
+
+  // Get webhook service health status
+  async getHealthStatus() {
+    try {
+      // Check various health indicators
+      const dbHealthy = await this.checkDatabaseHealth();
+      const whatsappHealthy = await this.checkWhatsAppHealth();
+      const aiHealthy = await this.checkAIHealth();
+
+      return {
+        database: dbHealthy ? 'healthy' : 'unhealthy',
+        whatsapp: whatsappHealthy ? 'healthy' : 'unhealthy',
+        ai: aiHealthy ? 'healthy' : 'unhealthy',
+        overall: dbHealthy && whatsappHealthy && aiHealthy ? 'healthy' : 'degraded',
+        lastChecked: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error('Health check failed', error);
+      return {
+        database: 'unknown',
+        whatsapp: 'unknown',
+        ai: 'unknown',
+        overall: 'unhealthy',
+        lastChecked: new Date().toISOString(),
+        error: error.message,
+      };
+    }
+  }
+
+  private async checkDatabaseHealth(): Promise<boolean> {
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async checkWhatsAppHealth(): Promise<boolean> {
+    try {
+      // Check if WhatsApp service is available
+      const result = await this.whatsappService.testConnection();
+      return result.status === 'connected';
+    } catch {
+      return false;
+    }
+  }
+
+  private async checkAIHealth(): Promise<boolean> {
+    try {
+      // Check if AI service is available
+      const result = await this.llmService.testConnection();
+      return result.status === 'connected';
+    } catch {
+      return false;
+    }
+  }
 }

@@ -142,15 +142,15 @@ export const conversationsApi = {
 export const webhooksApi = {
   getLogs: (limit?: number) => 
     withMockFallback(
-      () => api.get('/api/webhook/logs', { params: { limit } }),
+      () => api.get('/api/webhooks/logs', { params: { limit } }),
       () => mockApi.webhooks.getLogs()
     ),
   getStats: () => 
     withMockFallback(
-      () => api.get('/api/webhook/stats'),
+      () => api.get('/api/webhooks/stats'),
       () => mockApi.webhooks.getStats()
     ),
-  health: () => api.get('/api/webhook/health'),
+  health: () => api.get('/api/webhooks/health'),
 };
 
 export default api;

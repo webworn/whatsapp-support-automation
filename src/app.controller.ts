@@ -20,7 +20,7 @@ export class AppController {
     return this.appService.getHello();
   }
 
-  @Get('health')
+  @Get('api/health')
   @Public()
   async getHealth() {
     const baseHealth = {
@@ -55,7 +55,7 @@ export class AppController {
     }
   }
 
-  @Get('db-test')
+  @Get('api/db-test')
   @Public()
   async testDatabase() {
     try {
@@ -78,7 +78,7 @@ export class AppController {
     }
   }
 
-  @Get('db-schema')
+  @Get('api/db-schema')
   @Public()
   async checkDatabaseSchema() {
     try {
@@ -133,7 +133,7 @@ export class AppController {
     }
   }
 
-  @Get('debug-jwt')
+  @Get('api/debug-jwt')
   @Public()
   async debugJWT() {
     try {
@@ -174,7 +174,7 @@ export class AppController {
     }
   }
 
-  @Get('test-jwt/:token')
+  @Get('api/test-jwt/:token')
   @Public()
   async testJWT(@Param('token') token: string) {
     try {
@@ -215,7 +215,7 @@ export class AppController {
     }
   }
 
-  @Get('db-migrate')
+  @Get('api/db-migrate')
   @Public()
   async runMigrations() {
     try {
@@ -263,7 +263,7 @@ export class AppController {
     }
   }
 
-  @Get('test-llm')
+  @Get('api/test-llm')
   @Public()
   async testLLM() {
     try {
@@ -323,7 +323,7 @@ export class AppController {
     }
   }
 
-  @Get('test-whatsapp')
+  @Get('api/test-whatsapp')
   @Public()
   async testWhatsApp() {
     try {

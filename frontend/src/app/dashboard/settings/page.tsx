@@ -88,8 +88,8 @@ export default function SettingsPage() {
 
   // Mock API configuration data (in production, this would come from backend)
   const apiConfig = {
-    webhookUrl: `${process.env.NEXT_PUBLIC_API_URL}/api/webhook/whatsapp`,
-    verificationUrl: `${process.env.NEXT_PUBLIC_API_URL}/api/webhook/whatsapp`,
+    webhookUrl: `${process.env.NEXT_PUBLIC_API_URL}/api/webhooks/whatsapp-business`,
+    verificationUrl: `${process.env.NEXT_PUBLIC_API_URL}/api/webhooks/whatsapp-business`,
     webhookSecret: '••••••••••••••••',
     apiEndpoint: process.env.NEXT_PUBLIC_API_URL,
   };
