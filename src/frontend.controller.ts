@@ -12,47 +12,39 @@ export class FrontendController {
   @Get(['dashboard*', 'login', 'register', '', '/'])
   serveFrontend(@Req() req: Request, @Res() res: Response) {
     try {
-      const frontendPath = join(__dirname, '..', 'frontend');
+      // The frontend builds to .next in the project root, not in frontend subdirectory
+      const projectRoot = join(__dirname, '..');
+      const frontendPath = join(projectRoot, '.next');
       this.logger.log(`Serving frontend from: ${frontendPath}`);
       this.logger.log(`Requested path: ${req.path}`);
       
-      // Check for Next.js build files in correct locations
+      // Check for Next.js build files in correct locations (standalone build)
+      const standaloneAppDir = join(projectRoot, '.next', 'standalone', '.next', 'server', 'app');
+      
+      // Map routes to HTML files
+      let htmlFile = '';
+      if (req.path === '/' || req.path === '') {
+        htmlFile = 'index.html';
+      } else {
+        // Remove leading slash and add .html
+        htmlFile = req.path.replace(/^\//, '') + '.html';
+      }
+      
       const possiblePaths = [
-        // Next.js standalone server files
-        join(frontendPath, '.next', 'standalone', 'server.js'),
-        join(frontendPath, '.next', 'server', 'pages', 'index.html'),
-        join(frontendPath, '.next', 'server', 'app', 'page.html'),
-        // Static export files  
-        join(frontendPath, '.next', 'static', 'chunks', 'pages', 'index.js'),
-        // Any HTML files in .next
-        join(frontendPath, '.next', 'index.html'),
-        join(frontendPath, 'dist', 'index.html'),
+        // Next.js standalone HTML files
+        join(standaloneAppDir, htmlFile),
+        join(standaloneAppDir, 'index.html'), // fallback to home page
       ];
       
       // Log available frontend files for debugging
-      if (existsSync(frontendPath)) {
-        this.logger.log(`Frontend directory exists`);
-        try {
-          const stats = statSync(frontendPath);
-          this.logger.log(`Frontend path is directory: ${stats.isDirectory()}`);
-        } catch (e) {
-          this.logger.error(`Error checking frontend directory: ${e.message}`);
-        }
+      if (existsSync(standaloneAppDir)) {
+        this.logger.log(`Frontend standalone app directory exists: ${standaloneAppDir}`);
+        this.logger.log(`Looking for HTML file: ${htmlFile}`);
       } else {
-        this.logger.warn(`Frontend directory does not exist: ${frontendPath}`);
+        this.logger.warn(`Frontend standalone app directory does not exist: ${standaloneAppDir}`);
       }
       
-      // For production, serve the landing page directly instead of trying to find Next.js files
-      if (req.path === '/' || req.path === '') {
-        this.logger.log(`Serving landing page for root path`);
-        const landingPageContent = this.generateLandingPage();
-        res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-        res.send(landingPageContent);
-        return;
-      }
-
-      // Try to serve Next.js files for other routes
+      // Try to serve Next.js files first
       for (const htmlPath of possiblePaths) {
         if (existsSync(htmlPath)) {
           this.logger.log(`Found frontend file: ${htmlPath}`);
@@ -62,6 +54,16 @@ export class FrontendController {
           res.send(content);
           return;
         }
+      }
+
+      // For root path, serve the generated landing page if Next.js files not found
+      if (req.path === '/' || req.path === '') {
+        this.logger.log(`Next.js files not found, serving generated landing page for root path`);
+        const landingPageContent = this.generateLandingPage();
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.send(landingPageContent);
+        return;
       }
       
       this.logger.warn(`No built frontend files found, serving React fallback`);
@@ -84,7 +86,7 @@ export class FrontendController {
   // API health check that includes frontend status
   @Get('health')
   healthCheck(@Res() res: Response) {
-    const frontendPath = join(__dirname, '..', 'frontend', '.next');
+    const frontendPath = join(__dirname, '..', '.next');
     const frontendBuilt = existsSync(frontendPath);
     
     const health = {
