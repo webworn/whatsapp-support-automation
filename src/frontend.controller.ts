@@ -9,7 +9,7 @@ import { existsSync, readFileSync, statSync } from 'fs';
 export class FrontendController {
   private readonly logger = new Logger(FrontendController.name);
   
-  @Get(['dashboard*', 'login', 'register', '', '/'])
+  @Get(['dashboard*', 'login', 'register', 'privacy-policy', 'terms-of-service', '', '/'])
   serveFrontend(@Req() req: Request, @Res() res: Response) {
     try {
       // Determine project root based on whether we're in dev or production
@@ -127,6 +127,7 @@ export class FrontendController {
     const health = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
+      version: '1.1.0',
       services: {
         backend: 'operational',
         database: 'connected',
