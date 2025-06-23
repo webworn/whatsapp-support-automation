@@ -9,13 +9,10 @@ import { Card } from '@/components/ui/card';
 import { 
   MessageSquare, 
   Zap, 
-  Users, 
-  Shield, 
   ArrowRight, 
   CheckCircle, 
   Brain,
   Clock,
-  Globe,
   Lock,
   Smartphone,
   BarChart3,
@@ -767,8 +764,8 @@ export default function HomePage() {
               &copy; 2024 WhatsApp AI Assistant. All rights reserved.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
-              <a href="#" className="text-gray-400 hover:text-white">Privacy Policy</a>
-              <a href="#" className="text-gray-400 hover:text-white">Terms of Service</a>
+              <Link href="/privacy-policy" className="text-gray-400 hover:text-white">Privacy Policy</Link>
+              <Link href="/terms-of-service" className="text-gray-400 hover:text-white">Terms of Service</Link>
               <a href="#" className="text-gray-400 hover:text-white">GDPR</a>
             </div>
           </div>
