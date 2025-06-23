@@ -27,6 +27,43 @@ body {
 
 /* Enhanced UX Utilities */
 @layer utilities {
+  /* WCAG AA Compliant Text Colors */
+  .text-accessible-gray {
+    color: #374151; /* gray-700 - sufficient contrast on white */
+  }
+  
+  .text-accessible-muted {
+    color: #4b5563; /* gray-600 - accessible muted text */
+  }
+  
+  .text-accessible-light {
+    color: #6b7280; /* gray-500 - minimum accessible contrast */
+  }
+  
+  .text-success-accessible {
+    color: #047857; /* green-700 - accessible green */
+  }
+  
+  .text-error-accessible {
+    color: #dc2626; /* red-600 - accessible red */
+  }
+  
+  .text-info-accessible {
+    color: #1d4ed8; /* blue-700 - accessible blue */
+  }
+  
+  /* High Contrast Backgrounds */
+  .bg-success-accessible {
+    background-color: #d1fae5; /* green-100 */
+    border-color: #10b981; /* green-500 */
+    color: #047857; /* green-700 */
+  }
+  
+  .bg-error-accessible {
+    background-color: #fee2e2; /* red-100 */
+    border-color: #ef4444; /* red-500 */
+    color: #dc2626; /* red-600 */
+  }
   .hover\:scale-102:hover {
     transform: scale(1.02);
   }

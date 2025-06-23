@@ -469,12 +469,12 @@ export default function HomePage() {
             </h2>
             
             {/* Customer Logos */}
-            <div className="flex justify-center items-center space-x-8 opacity-60 mb-12">
-              <div className="text-xl font-bold text-gray-600">TechCorp</div>
-              <div className="text-xl font-bold text-gray-600">E-commerce+</div>
-              <div className="text-xl font-bold text-gray-600">HealthCare</div>
-              <div className="text-xl font-bold text-gray-600">EduPlatform</div>
-              <div className="text-xl font-bold text-gray-600">RetailPro</div>
+            <div className="flex justify-center items-center space-x-8 mb-12">
+              <div className="text-xl font-bold text-gray-700">TechCorp</div>
+              <div className="text-xl font-bold text-gray-700">E-commerce+</div>
+              <div className="text-xl font-bold text-gray-700">HealthCare</div>
+              <div className="text-xl font-bold text-gray-700">EduPlatform</div>
+              <div className="text-xl font-bold text-gray-700">RetailPro</div>
             </div>
 
             {/* Testimonials */}
@@ -678,7 +678,7 @@ export default function HomePage() {
           <h2 className="text-3xl font-extrabold text-white sm:text-4xl mb-4">
             Ready to Transform Your Customer Support?
           </h2>
-          <p className="text-xl text-green-100 mb-8">
+          <p className="text-xl text-green-50 mb-8">
             Join thousands of businesses using WhatsApp AI
           </p>
           
@@ -693,7 +693,7 @@ export default function HomePage() {
             </Button>
           </div>
           
-          <div className="flex justify-center space-x-8 text-green-100">
+          <div className="flex justify-center space-x-8 text-green-50">
             <div className="flex items-center">
               <CheckCircle className="h-5 w-5 mr-2" />
               <span>No credit card required</span>

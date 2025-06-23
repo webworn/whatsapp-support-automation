@@ -136,7 +136,7 @@ export default function SettingsPage() {
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
                   <Input
                     type="email"
                     value={user?.email || ''}
@@ -144,7 +144,7 @@ export default function SettingsPage() {
                     className="pl-10 bg-gray-50"
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-600">
                   Email cannot be changed
                 </p>
               </div>
@@ -175,7 +175,7 @@ export default function SettingsPage() {
                   WhatsApp Business Phone Number
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
                   <Input
                     id="whatsappPhoneNumber"
                     name="whatsappPhoneNumber"
@@ -187,7 +187,7 @@ export default function SettingsPage() {
                     disabled={loading}
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-600">
                   This should match your WhatsApp Business API phone number
                 </p>
               </div>
