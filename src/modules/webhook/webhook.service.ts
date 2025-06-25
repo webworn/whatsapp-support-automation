@@ -31,11 +31,24 @@ export class WebhookService {
   async verifyWebhook(mode: string, token: string, challenge: string): Promise<string> {
     const verifyToken = this.configService.get<string>('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
     
+    this.logger.log('Webhook verification attempt', { 
+      mode, 
+      receivedToken: token, 
+      expectedToken: verifyToken,
+      challenge 
+    });
+    
     if (mode === 'subscribe' && token === verifyToken) {
       this.logger.log('Webhook verified successfully');
       return challenge;
     } else {
-      this.logger.error('Webhook verification failed', { mode, token });
+      this.logger.error('Webhook verification failed', { 
+        mode, 
+        receivedToken: token, 
+        expectedToken: verifyToken,
+        modeMatch: mode === 'subscribe',
+        tokenMatch: token === verifyToken
+      });
       throw new BadRequestException('Webhook verification failed');
     }
   }
