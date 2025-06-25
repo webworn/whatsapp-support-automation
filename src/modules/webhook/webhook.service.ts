@@ -69,20 +69,40 @@ export class WebhookService {
 
   async processWebhook(webhookData: WhatsAppWebhookDto, rawPayload: string): Promise<ProcessedMessageDto[]> {
     const processedMessages: ProcessedMessageDto[] = [];
+    const webhookId = `webhook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Log webhook for debugging
-    await this.logWebhook('whatsapp', rawPayload, true, true);
+    this.logger.log(`Processing webhook ${webhookId} with ${webhookData.entry?.length || 0} entries`);
+
+    // Enhanced webhook logging
+    await this.logWebhook('whatsapp', rawPayload, true, true, null, webhookId);
 
     try {
+      // Check if test mode is enabled for enhanced logging
+      const testConfig = this.configService.get('whatsapp.testing');
+      const isTestMode = testConfig?.enabled;
+
       for (const entry of webhookData.entry) {
+        this.logger.log(`Processing entry ${entry.id} with ${entry.changes?.length || 0} changes`);
+        
         for (const change of entry.changes) {
           if (change.field === 'messages') {
             const { messages, statuses, contacts } = change.value;
 
+            // Enhanced debugging for test mode
+            if (isTestMode) {
+              this.logger.log(`Webhook ${webhookId} - Messages: ${messages?.length || 0}, Statuses: ${statuses?.length || 0}, Contacts: ${contacts?.length || 0}`);
+              
+              if (messages) {
+                for (const msg of messages) {
+                  this.logger.log(`Test mode - Incoming message: ${msg.id} from ${msg.from} type: ${msg.type}`);
+                }
+              }
+            }
+
             // Process incoming messages
             if (messages) {
               for (const message of messages) {
-                const processed = await this.processIncomingMessage(message, contacts);
+                const processed = await this.processIncomingMessage(message, contacts, webhookId);
                 if (processed) {
                   processedMessages.push(processed);
                 }
@@ -91,55 +111,70 @@ export class WebhookService {
 
             // Process message status updates
             if (statuses) {
-              await this.processMessageStatuses(statuses);
+              await this.processMessageStatuses(statuses, webhookId);
             }
+          } else {
+            this.logger.log(`Webhook ${webhookId} - Skipping change field: ${change.field}`);
           }
         }
       }
 
-      this.logger.log(`Processed ${processedMessages.length} messages from webhook`);
+      this.logger.log(`Webhook ${webhookId} processed ${processedMessages.length} messages successfully`);
+      await this.logWebhook('whatsapp', rawPayload, true, true, null, webhookId);
       return processedMessages;
 
     } catch (error) {
-      this.logger.error('Error processing webhook', error);
-      await this.logWebhook('whatsapp', rawPayload, true, false, error.message);
+      this.logger.error(`Webhook ${webhookId} processing failed`, error);
+      await this.logWebhook('whatsapp', rawPayload, true, false, error.message, webhookId);
       throw error;
     }
   }
 
   private async processIncomingMessage(
     message: WhatsAppMessageDto, 
-    contacts?: Array<{ profile: { name: string }; wa_id: string }>
+    contacts?: Array<{ profile: { name: string }; wa_id: string }>,
+    webhookId?: string
   ): Promise<ProcessedMessageDto | null> {
     try {
       const customerPhone = message.from;
       const customerName = contacts?.find(c => c.wa_id === customerPhone)?.profile?.name;
+      const logPrefix = webhookId ? `[${webhookId}]` : '';
+
+      this.logger.log(`${logPrefix} Processing message ${message.id} from ${customerPhone} (${customerName || 'Unknown'})`);
 
       // Get message content based on type
       const { content, messageType } = this.extractMessageContent(message);
 
       if (!content) {
-        this.logger.warn(`Unsupported message type: ${message.type}`);
+        this.logger.warn(`${logPrefix} Unsupported message type: ${message.type} for message ${message.id}`);
         return null;
       }
+
+      this.logger.log(`${logPrefix} Message content extracted: type=${messageType}, length=${content.length}`);
 
       // Find the user who owns this WhatsApp phone number
       const userId = await this.getUserByWhatsAppPhone(customerPhone);
       
       if (!userId) {
-        this.logger.warn(`No user configured for WhatsApp phone: ${customerPhone}`);
+        this.logger.error(`${logPrefix} No user configured for WhatsApp phone: ${customerPhone} - Message ${message.id} will be dropped`);
         return null; // Skip processing if no user is configured for this number
       }
+
+      this.logger.log(`${logPrefix} Message ${message.id} routed to user ID: ${userId}`);
 
       // Find or create conversation
       let conversation = await this.conversationService.findConversationByPhone(userId, customerPhone);
       
       if (!conversation) {
+        this.logger.log(`${logPrefix} Creating new conversation for ${customerPhone}`);
         conversation = await this.conversationService.createConversation(userId, {
           customerPhone,
           customerName,
           aiEnabled: true,
         });
+        this.logger.log(`${logPrefix} Conversation created with ID: ${conversation.id}`);
+      } else {
+        this.logger.log(`${logPrefix} Using existing conversation ID: ${conversation.id}`);
       }
 
       // Create message record
@@ -151,13 +186,16 @@ export class WebhookService {
         whatsappMessageId: message.id,
       });
 
-      this.logger.log(`Message processed: ${message.id} from ${customerPhone}`);
+      this.logger.log(`${logPrefix} Message record created: ${messageRecord.id} for WhatsApp message ${message.id}`);
 
       // Generate AI response if conversation has AI enabled
       if (conversation.aiEnabled) {
+        this.logger.log(`${logPrefix} Triggering AI response generation for conversation ${conversation.id}`);
         setImmediate(() => {
-          this.generateAiResponse(userId, conversation.id, customerPhone, content, customerName);
+          this.generateAiResponse(userId, conversation.id, customerPhone, content, customerName, webhookId);
         });
+      } else {
+        this.logger.log(`${logPrefix} AI disabled for conversation ${conversation.id} - skipping AI response`);
       }
 
       return {
@@ -236,9 +274,11 @@ export class WebhookService {
     }
   }
 
-  private async processMessageStatuses(statuses: WhatsAppStatusDto[]): Promise<void> {
+  private async processMessageStatuses(statuses: WhatsAppStatusDto[], webhookId?: string): Promise<void> {
+    const logPrefix = webhookId ? `[${webhookId}]` : '';
+    
     for (const status of statuses) {
-      this.logger.log(`Message ${status.id} status: ${status.status} for ${status.recipient_id}`);
+      this.logger.log(`${logPrefix} Message ${status.id} status: ${status.status} for ${status.recipient_id}`);
       
       try {
         // Find the message by WhatsApp message ID
@@ -275,26 +315,68 @@ export class WebhookService {
   }
 
   private async getUserByWhatsAppPhone(customerPhone: string): Promise<string | null> {
-    // In multi-tenant SAAS, we need to determine which user owns/handles this customer
-    // This could be done via:
-    // 1. WhatsApp Business Phone Number mapping (preferred)
-    // 2. Customer assignment rules
-    // 3. Round-robin or load balancing
+    // Enhanced user routing for test scenarios and production
+    this.logger.log(`Finding user to handle customer: ${customerPhone}`);
     
-    // For now, we'll look for users who have configured their WhatsApp phone number
-    // and either find exact match or use fallback logic
+    // Check if this is a test scenario (Meta test number)
+    const testConfig = this.configService.get('whatsapp.testing');
+    const isTestMode = testConfig?.enabled;
+    const testNumber = testConfig?.testNumber || '+15556485637';
     
+    // For test scenarios, prioritize test user
+    if (isTestMode && this.isTestScenario(customerPhone, testNumber)) {
+      this.logger.log(`Test scenario detected - routing to test user`);
+      
+      // Look for dedicated test user first
+      let testUser = await this.prisma.user.findFirst({
+        where: { 
+          OR: [
+            { email: 'test@whatsapp-ai.com' },
+            { email: 'test@example.com' },
+            { whatsappPhoneNumber: testNumber }
+          ],
+          isEmailVerified: true,
+        },
+        orderBy: { lastLoginAt: 'desc' },
+      });
+
+      if (testUser) {
+        this.logger.log(`Routing test message to test user: ${testUser.email}`);
+        return testUser.id;
+      }
+
+      this.logger.warn('No test user found, falling back to default user for test scenario');
+    }
+
+    // Production routing logic
     // Option 1: Try to find user by their configured WhatsApp number
-    // (In production, you'd match customer calls to business WhatsApp number)
     let user = await this.prisma.user.findFirst({
       where: { 
         whatsappPhoneNumber: { not: null },
-        isEmailVerified: true, // Only active users
+        isEmailVerified: true,
       },
       orderBy: { lastLoginAt: 'desc' }, // Prefer recently active users
     });
 
-    // Option 2: If no specific mapping, find the primary/default user
+    // Option 2: Customer assignment based on business rules
+    if (!user) {
+      // Look for users with active conversations to maintain continuity
+      const existingConversation = await this.prisma.conversation.findFirst({
+        where: { 
+          customerPhone,
+          user: { isEmailVerified: true }
+        },
+        include: { user: true },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      if (existingConversation) {
+        this.logger.log(`Found existing conversation - routing to previous user: ${existingConversation.user.email}`);
+        return existingConversation.user.id;
+      }
+    }
+
+    // Option 3: Default fallback - find the primary/default user
     if (!user) {
       user = await this.prisma.user.findFirst({
         where: { isEmailVerified: true },
@@ -307,8 +389,16 @@ export class WebhookService {
       return null;
     }
 
-    this.logger.log(`Routing customer ${customerPhone} to user ${user.email} (${user.businessName})`);
+    this.logger.log(`Routing customer ${customerPhone} to user ${user.email} (${user.businessName || 'Unknown Business'})`);
     return user.id;
+  }
+
+  private isTestScenario(customerPhone: string, testNumber: string): boolean {
+    // Check if this is related to test scenarios
+    // This could be incoming to test number or from test number
+    return customerPhone === testNumber || 
+           customerPhone.includes('555648') || // Meta test number pattern
+           customerPhone.includes('15556485637'); // Full test number
   }
 
   private async getOrCreateDemoUser(): Promise<string> {
@@ -344,7 +434,8 @@ export class WebhookService {
     payload: string, 
     isValid: boolean, 
     processed: boolean,
-    error?: string
+    error?: string,
+    webhookId?: string
   ): Promise<void> {
     try {
       await this.prisma.webhookLog.create({
@@ -451,9 +542,12 @@ export class WebhookService {
     customerPhone: string,
     customerMessage: string,
     customerName?: string,
+    webhookId?: string
   ): Promise<void> {
+    const logPrefix = webhookId ? `[${webhookId}]` : '';
+    
     try {
-      this.logger.log(`Generating AI response for conversation ${conversationId}`);
+      this.logger.log(`${logPrefix} Generating AI response for conversation ${conversationId}`);
 
       // Get conversation history for context (last 10 messages)
       const recentMessages = await this.messageService.findMessages(userId, {
@@ -463,11 +557,15 @@ export class WebhookService {
         sortOrder: 'desc'
       });
       
+      this.logger.log(`${logPrefix} Retrieved ${recentMessages.messages?.length || 0} recent messages for context`);
+      
       // Get user info for business context
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { businessName: true },
       });
+
+      this.logger.log(`${logPrefix} Business context: ${user?.businessName || 'Unknown Business'}`);
 
       // Search knowledge base for relevant documents
       const relevantDocs = await this.documentService.getRelevantDocuments(
@@ -476,7 +574,7 @@ export class WebhookService {
         3 // Get top 3 relevant documents
       );
 
-      this.logger.log(`Found ${relevantDocs.length} relevant documents for customer query`);
+      this.logger.log(`${logPrefix} Found ${relevantDocs.length} relevant documents for customer query`);
 
       // Prepare conversation context including both customer and AI messages
       const messages = recentMessages.messages
@@ -487,6 +585,8 @@ export class WebhookService {
         }));
 
       // Generate AI response with knowledge base context
+      this.logger.log(`${logPrefix} Generating AI response with ${messages.length} context messages`);
+      
       const aiResponse = await this.llmService.generateResponse({
         messages,
         businessName: user?.businessName,
@@ -494,6 +594,8 @@ export class WebhookService {
         knowledgeBase: relevantDocs,
         userQuery: customerMessage,
       });
+
+      this.logger.log(`${logPrefix} AI response generated using model: ${aiResponse.model} (${aiResponse.processingTimeMs}ms)`);
 
       // Save AI response to database
       const aiMessageRecord = await this.messageService.createMessage(userId, {
@@ -505,9 +607,11 @@ export class WebhookService {
         processingTimeMs: aiResponse.processingTimeMs,
       });
 
-      this.logger.log(`AI response generated and saved for conversation ${conversationId} (${aiResponse.processingTimeMs}ms)`);
+      this.logger.log(`${logPrefix} AI message record created: ${aiMessageRecord.id}`);
 
       // Send AI response back to WhatsApp customer
+      this.logger.log(`${logPrefix} Sending AI response to WhatsApp: ${customerPhone}`);
+      
       try {
         const sendResult = await this.whatsappService.sendTextMessage(customerPhone, aiResponse.content);
         
@@ -518,17 +622,17 @@ export class WebhookService {
             deliveryStatus: 'sent',
           });
 
-          this.logger.log(`AI response sent via WhatsApp: ${sendResult.messageId} for message ${aiMessageRecord.id}`);
+          this.logger.log(`${logPrefix} AI response sent successfully: WhatsApp ID ${sendResult.messageId} for message ${aiMessageRecord.id}`);
         } else {
           // Update message with failed status
           await this.messageService.updateMessage(userId, aiMessageRecord.id, {
             deliveryStatus: 'failed',
           });
 
-          this.logger.error(`Failed to send AI response via WhatsApp: ${sendResult.error}`);
+          this.logger.error(`${logPrefix} Failed to send AI response via WhatsApp: ${sendResult.error}`);
         }
       } catch (sendError) {
-        this.logger.error(`Error sending AI response via WhatsApp`, sendError);
+        this.logger.error(`${logPrefix} Error sending AI response via WhatsApp`, sendError);
         
         // Update message with failed status
         try {

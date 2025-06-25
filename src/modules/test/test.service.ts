@@ -78,8 +78,27 @@ export class TestService {
         };
       }
 
-      // Test the WhatsApp API connection
-      const connectionTest = await this.whatsappService.testConnection();
+      // Test the WhatsApp API connection with timeout
+      let connectionTest;
+      try {
+        // Add timeout to prevent hanging
+        connectionTest = await Promise.race([
+          this.whatsappService.testConnection(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Connection test timeout after 10 seconds')), 10000)
+          )
+        ]);
+      } catch (connectionError) {
+        this.logger.error('WhatsApp API connection test failed', connectionError);
+        return {
+          status: 'error',
+          testMode: testConfig.enabled,
+          testNumber: testConfig.testNumber,
+          phoneNumberId: testConfig.phoneNumberId,
+          error: `WhatsApp API connection failed: ${connectionError.message}`,
+          timestamp: new Date().toISOString(),
+        };
+      }
       
       return {
         status: connectionTest.status === 'connected' ? 'connected' : 'error',
@@ -92,12 +111,23 @@ export class TestService {
 
     } catch (error) {
       this.logger.error('Test connection check failed', error);
+      
+      // Provide more specific error messages
+      let errorMessage = error.message;
+      if (error.message?.includes('config')) {
+        errorMessage = 'Configuration error: Please check environment variables';
+      } else if (error.message?.includes('network') || error.message?.includes('ENOTFOUND')) {
+        errorMessage = 'Network error: Cannot reach WhatsApp API servers';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = 'Timeout error: WhatsApp API is not responding';
+      }
+      
       return {
         status: 'error',
         testMode: false,
         testNumber: '+15556485637',
         phoneNumberId: '665397593326012',
-        error: error.message,
+        error: errorMessage,
         timestamp: new Date().toISOString(),
       };
     }
@@ -211,10 +241,22 @@ export class TestService {
 
       } catch (aiError) {
         this.logger.error('AI response generation failed', aiError);
+        
+        // Provide different fallback responses based on error type
+        let fallbackResponse = `Thank you for your test message! I'm experiencing some technical difficulties with AI processing right now, but I received your message: "${request.message}". A member of our team will get back to you shortly.`;
+        
+        if (aiError.message?.includes('API key')) {
+          fallbackResponse = `Thank you for your message! Our AI system is currently unavailable due to configuration issues. Please contact support for immediate assistance.`;
+        } else if (aiError.message?.includes('timeout')) {
+          fallbackResponse = `Thank you for your message! Our AI system is taking longer than usual to respond. We're working to resolve this issue.`;
+        } else if (aiError.message?.includes('rate limit')) {
+          fallbackResponse = `Thank you for your message! We're currently experiencing high volume. Your message is important to us and we'll respond as soon as possible.`;
+        }
+        
         return {
           success: true,
           conversationId: conversation.id,
-          aiResponse: `Thank you for your test message! I'm experiencing some technical difficulties with AI processing right now, but I received your message: "${request.message}". A member of our team will get back to you shortly.`,
+          aiResponse: fallbackResponse,
           timestamp: new Date().toISOString(),
         };
       }
@@ -377,6 +419,264 @@ export class TestService {
 
     if (cleanupCount > 0) {
       this.logger.log(`Cleaned up ${cleanupCount} expired test sessions`);
+    }
+  }
+
+  async createTestUser(): Promise<any> {
+    try {
+      // Check if test user already exists
+      let testUser = await this.prisma.user.findFirst({
+        where: { 
+          OR: [
+            { email: 'test@whatsapp-ai.com' },
+            { email: 'test@example.com' }
+          ]
+        },
+      });
+
+      if (testUser) {
+        // Update existing user to ensure proper configuration
+        testUser = await this.prisma.user.update({
+          where: { id: testUser.id },
+          data: {
+            whatsappPhoneNumber: '+15556485637',
+            isEmailVerified: true,
+            businessName: 'WhatsApp AI Testing Business',
+            aiModelPreference: 'claude-haiku',
+            lastLoginAt: new Date(),
+          },
+        });
+
+        this.logger.log(`Updated existing test user: ${testUser.email}`);
+        
+        return {
+          action: 'updated',
+          user: {
+            id: testUser.id,
+            email: testUser.email,
+            businessName: testUser.businessName,
+            whatsappPhoneNumber: testUser.whatsappPhoneNumber,
+            isEmailVerified: testUser.isEmailVerified,
+            createdAt: testUser.createdAt,
+          },
+        };
+      }
+
+      // Create new test user
+      const bcrypt = require('bcryptjs');
+      const passwordHash = await bcrypt.hash('testpass123', 12);
+      
+      testUser = await this.prisma.user.create({
+        data: {
+          email: 'test@whatsapp-ai.com',
+          passwordHash,
+          businessName: 'WhatsApp AI Testing Business',
+          whatsappPhoneNumber: '+15556485637',
+          aiModelPreference: 'claude-haiku',
+          isEmailVerified: true,
+          lastLoginAt: new Date(),
+        },
+      });
+
+      this.logger.log(`Created new test user: ${testUser.email}`);
+
+      // Create some sample knowledge base content for testing
+      try {
+        await this.createSampleKnowledgeBase(testUser.id);
+      } catch (kbError) {
+        this.logger.warn('Failed to create sample knowledge base', kbError);
+      }
+
+      return {
+        action: 'created',
+        user: {
+          id: testUser.id,
+          email: testUser.email,
+          businessName: testUser.businessName,
+          whatsappPhoneNumber: testUser.whatsappPhoneNumber,
+          isEmailVerified: testUser.isEmailVerified,
+          createdAt: testUser.createdAt,
+        },
+        credentials: {
+          email: 'test@whatsapp-ai.com',
+          password: 'testpass123',
+        },
+      };
+
+    } catch (error) {
+      this.logger.error('Failed to create test user', error);
+      
+      // Enhanced error information for debugging
+      if (error.code === 'P2002') {
+        // Unique constraint violation - probably email already exists
+        throw new Error('Test user already exists with a different configuration. Please check existing users.');
+      }
+      
+      if (error.code === 'P2003') {
+        // Foreign key constraint failure
+        throw new Error('Database constraint error. Please ensure all required tables exist.');
+      }
+      
+      if (error.message?.includes('connect')) {
+        throw new Error('Database connection failed. Please check database availability.');
+      }
+      
+      throw new Error(`Failed to create test user: ${error.message}`);
+    }
+  }
+
+  async getTestUserStatus(): Promise<any> {
+    try {
+      const testUsers = await this.prisma.user.findMany({
+        where: { 
+          OR: [
+            { email: 'test@whatsapp-ai.com' },
+            { email: 'test@example.com' }
+          ]
+        },
+        select: {
+          id: true,
+          email: true,
+          businessName: true,
+          whatsappPhoneNumber: true,
+          isEmailVerified: true,
+          lastLoginAt: true,
+          createdAt: true,
+          _count: {
+            select: {
+              conversations: true,
+              documents: true,
+            },
+          },
+        },
+      });
+
+      const totalUsers = await this.prisma.user.count({
+        where: { isEmailVerified: true },
+      });
+
+      return {
+        testUsers,
+        totalVerifiedUsers: totalUsers,
+        hasTestUser: testUsers.length > 0,
+        recommendedUser: testUsers.find(u => u.email === 'test@whatsapp-ai.com') || testUsers[0],
+      };
+
+    } catch (error) {
+      this.logger.error('Failed to get test user status', error);
+      throw new Error(`Failed to get test user status: ${error.message}`);
+    }
+  }
+
+  private async createSampleKnowledgeBase(userId: string): Promise<void> {
+    try {
+      // Check if sample documents already exist
+      const existingDocs = await this.prisma.document.count({
+        where: { userId, category: 'sample' },
+      });
+
+      if (existingDocs > 0) {
+        this.logger.log('Sample knowledge base already exists');
+        return;
+      }
+
+      // Create sample documents for testing
+      const sampleDocs = [
+        {
+          filename: 'business-info.txt',
+          originalName: 'Business Information',
+          fileType: 'txt',
+          content: `Welcome to WhatsApp AI Testing Business!
+
+Business Hours: Monday-Friday 9AM-6PM EST
+Support Email: support@whatsapp-ai.com
+Phone: +1-555-123-4567
+
+Our Services:
+- AI-powered customer support automation
+- WhatsApp Business API integration
+- Knowledge base management
+- Real-time conversation monitoring
+- Multi-language support
+
+We specialize in helping businesses automate their customer support through intelligent WhatsApp integration.`,
+          category: 'sample',
+        },
+        {
+          filename: 'faq.txt',
+          originalName: 'Frequently Asked Questions',
+          fileType: 'txt',
+          content: `Frequently Asked Questions
+
+Q: How does the AI assistant work?
+A: Our AI assistant uses advanced language models to understand customer queries and provide intelligent responses based on your knowledge base.
+
+Q: Can I customize the AI responses?
+A: Yes! You can upload your own documents to the knowledge base, and the AI will use that information to provide contextual responses.
+
+Q: What types of messages are supported?
+A: We support text messages, images, documents, and interactive button responses.
+
+Q: How do I get started?
+A: Simply send a message to our WhatsApp number and the AI will respond automatically using your business information.
+
+Q: Is my data secure?
+A: Yes, all conversations are encrypted and stored securely. We follow industry best practices for data protection.`,
+          category: 'sample',
+        },
+        {
+          filename: 'pricing.txt',
+          originalName: 'Pricing Information',
+          fileType: 'txt',
+          content: `Pricing Plans
+
+Starter Plan - $29/month
+- Up to 500 messages per month
+- Basic AI responses
+- Email support
+- 1 WhatsApp number
+
+Professional Plan - $99/month
+- Up to 2,000 messages per month
+- Advanced AI with custom knowledge base
+- Priority support
+- 3 WhatsApp numbers
+- Analytics dashboard
+
+Enterprise Plan - $299/month
+- Unlimited messages
+- Custom AI training
+- Dedicated support manager
+- Multiple WhatsApp numbers
+- Advanced analytics
+- API access
+
+All plans include:
+- 24/7 AI responses
+- Message history
+- Real-time monitoring
+- Mobile and web dashboard`,
+          category: 'sample',
+        },
+      ];
+
+      for (const doc of sampleDocs) {
+        await this.prisma.document.create({
+          data: {
+            ...doc,
+            userId,
+            fileSize: doc.content.length,
+            status: 'ready',
+            uploadDate: new Date(),
+          },
+        });
+      }
+
+      this.logger.log(`Created ${sampleDocs.length} sample knowledge base documents`);
+
+    } catch (error) {
+      this.logger.error('Failed to create sample knowledge base', error);
+      throw error;
     }
   }
 }
