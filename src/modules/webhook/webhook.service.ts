@@ -438,15 +438,25 @@ export class WebhookService {
     webhookId?: string
   ): Promise<void> {
     try {
-      await this.prisma.webhookLog.create({
-        data: {
-          source,
-          payload: payload.length > 10000 ? payload.substring(0, 10000) + '...' : payload,
-          isValid,
-          processed,
-          error,
-        },
-      });
+      // Log to console for now since webhookLog table may not exist
+      const logPrefix = webhookId ? `[${webhookId}]` : '';
+      this.logger.log(`${logPrefix} Webhook ${source}: ${processed ? 'processed' : 'failed'} ${error ? `(${error})` : ''}`);
+      
+      // Optionally try to log to database if table exists
+      try {
+        await this.prisma.webhookLog.create({
+          data: {
+            source,
+            payload: payload.length > 10000 ? payload.substring(0, 10000) + '...' : payload,
+            isValid,
+            processed,
+            error,
+          },
+        });
+      } catch (dbError) {
+        // Silently ignore database logging errors - table may not exist
+        this.logger.debug('Webhook database logging skipped (table may not exist)');
+      }
     } catch (logError) {
       this.logger.error('Failed to log webhook', logError);
     }
