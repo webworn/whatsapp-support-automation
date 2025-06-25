@@ -42,4 +42,16 @@ export default registerAs('whatsapp', () => ({
     groupMessages: process.env.ENABLE_GROUP_MESSAGES === 'true',
     businessApi: process.env.ENABLE_WHATSAPP_BUSINESS_API !== 'false',
   },
+  testing: {
+    enabled: process.env.WHATSAPP_TEST_MODE === 'true',
+    testNumber: process.env.WHATSAPP_TEST_NUMBER || '+15556485637',
+    testPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || '665397593326012',
+    testBusinessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '1437200930610622',
+    allowedTestNumbers: [
+      '+15556485637', // Meta's official test number
+      process.env.WHATSAPP_TEST_NUMBER,
+    ].filter(Boolean),
+    testSessionTimeout: parseInt(process.env.TEST_SESSION_TIMEOUT) || 3600, // 1 hour
+    maxTestMessages: parseInt(process.env.MAX_TEST_MESSAGES) || 50, // per session
+  },
 }));

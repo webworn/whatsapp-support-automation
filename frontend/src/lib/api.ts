@@ -163,4 +163,25 @@ export const webhooksApi = {
   health: () => api.get('/api/webhooks/health'),
 };
 
+// Testing API
+export const testingApi = {
+  getStatus: () => api.get('/api/test/status'),
+  
+  checkConnection: () => api.get('/api/test/connection'),
+  
+  sendMessage: (data: { to: string; message: string; customerName?: string }) =>
+    api.post('/api/test/send-message', data),
+  
+  simulateWebhook: (data: { from: string; message: string; customerName?: string }) =>
+    api.post('/api/test/simulate-webhook', data),
+  
+  getSession: (phone: string) =>
+    api.get('/api/test/session', { params: { phone } }),
+  
+  cleanupSessions: () =>
+    api.post('/api/test/cleanup'),
+  
+  getInstructions: () => api.get('/api/test/instructions'),
+};
+
 export default api;

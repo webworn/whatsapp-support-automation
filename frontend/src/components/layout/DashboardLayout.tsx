@@ -17,7 +17,8 @@ import {
   User,
   BookOpen,
   Bell,
-  Search
+  Search,
+  TestTube
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +31,7 @@ const navigation = [
   { name: 'Conversations', href: '/dashboard/conversations', icon: MessageSquare, badge: '12' },
   { name: 'Knowledge Base', href: '/dashboard/knowledge', icon: BookOpen, badge: null },
   { name: 'Customers', href: '/dashboard/customers', icon: Users, badge: null },
+  { name: 'Testing', href: '/dashboard/testing', icon: TestTube, badge: 'NEW' },
   { name: 'Webhooks', href: '/dashboard/webhooks', icon: Webhook, badge: null },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings, badge: null },
 ];

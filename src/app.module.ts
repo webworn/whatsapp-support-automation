@@ -16,6 +16,7 @@ import { DocumentModule } from './modules/document/document.module';
 import { DashboardModule } from './gateways/dashboard.module';
 import { LlmModule } from './modules/llm/llm.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
+import { TestModule } from './modules/test/test.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -67,6 +68,7 @@ import { FrontendController } from './frontend.controller';
     DashboardModule,
     LlmModule,
     WhatsAppModule,
+    TestModule,
   ],
   controllers: [FrontendController, AppController],
   providers: [
