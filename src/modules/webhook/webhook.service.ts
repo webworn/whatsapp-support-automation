@@ -293,16 +293,21 @@ export class WebhookService {
             data: { deliveryStatus: status.status },
           });
 
-          // Create a delivery update record for tracking history
-          await this.prisma.messageDeliveryUpdate.create({
-            data: {
-              messageId: message.id,
-              whatsappMessageId: status.id,
-              status: status.status,
-              recipientId: status.recipient_id,
-              timestamp: new Date(parseInt(status.timestamp) * 1000),
-            },
-          });
+          // Create a delivery update record for tracking history (if table exists)
+          try {
+            await this.prisma.messageDeliveryUpdate.create({
+              data: {
+                messageId: message.id,
+                whatsappMessageId: status.id,
+                status: status.status,
+                recipientId: status.recipient_id,
+                timestamp: new Date(parseInt(status.timestamp) * 1000),
+              },
+            });
+          } catch (deliveryUpdateError) {
+            // Silently ignore if messageDeliveryUpdate table doesn't exist
+            this.logger.debug(`${logPrefix} Delivery update tracking skipped (table may not exist)`);
+          }
 
           this.logger.log(`Updated delivery status for message ${message.id}: ${status.status}`);
         } else {
