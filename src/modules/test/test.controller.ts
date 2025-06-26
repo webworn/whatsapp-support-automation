@@ -274,7 +274,7 @@ export class TestController {
         ],
         webhookConfig: {
           url: 'https://whatsapp-support-automation-production.up.railway.app/api/webhooks/whatsapp-business',
-          verifyToken: 'test_verify_token_123',
+          verifyToken: 'testverifytoken123',
           events: ['messages', 'message_deliveries', 'message_reads'],
         },
       };
