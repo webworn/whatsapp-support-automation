@@ -29,10 +29,17 @@ export class WebhookService {
   ) {}
 
   async verifyWebhook(mode: string, token: string, challenge: string): Promise<string> {
-    const verifyToken = this.configService.get<string>('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
+    // Check if test mode is enabled
+    const isTestMode = this.configService.get<boolean>('whatsapp.testing.enabled');
+    
+    // Use test verify token if test mode is enabled, otherwise use production
+    const verifyToken = isTestMode
+      ? (this.configService.get<string>('whatsapp.business.testVerifyToken') || process.env.TEST_VERIFY_TOKEN)
+      : (this.configService.get<string>('whatsapp.business.verifyToken') || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN);
     
     this.logger.log('Webhook verification attempt', { 
       mode, 
+      testMode: isTestMode,
       receivedToken: token, 
       expectedToken: verifyToken,
       challenge 

@@ -21,6 +21,10 @@ export default registerAs('whatsapp', () => ({
     timeout: parseInt(process.env.WHATSAPP_API_TIMEOUT) || 30000,
     retries: parseInt(process.env.WHATSAPP_API_RETRIES) || 3,
     retryDelay: parseInt(process.env.WHATSAPP_API_RETRY_DELAY) || 2000,
+    // Test credentials
+    testAccessToken: process.env.TEST_ACCESS_TOKEN,
+    testPhoneNumberId: process.env.TEST_PHONE_NUMBER_ID,
+    testVerifyToken: process.env.TEST_VERIFY_TOKEN,
   },
   webhook: {
     timeout: parseInt(process.env.WEBHOOK_TIMEOUT) || 30000,
@@ -43,9 +47,9 @@ export default registerAs('whatsapp', () => ({
     businessApi: process.env.ENABLE_WHATSAPP_BUSINESS_API !== 'false',
   },
   testing: {
-    enabled: process.env.WHATSAPP_TEST_MODE === 'true',
+    enabled: process.env.TEST_MODE_ENABLED === 'true' || process.env.WHATSAPP_TEST_MODE === 'true',
     testNumber: process.env.WHATSAPP_TEST_NUMBER || '+15556485637',
-    testPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || '665397593326012',
+    testPhoneNumberId: process.env.TEST_PHONE_NUMBER_ID || '665397593326012',
     testBusinessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '1437200930610622',
     allowedTestNumbers: [
       '+15556485637', // Meta's official test number

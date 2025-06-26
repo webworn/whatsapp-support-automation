@@ -22,8 +22,21 @@ export class WhatsAppService {
 
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
     try {
-      const accessToken = this.configService.get<string>('whatsapp.accessToken') || process.env.WHATSAPP_ACCESS_TOKEN;
-      const phoneNumberId = this.configService.get<string>('whatsapp.phoneNumberId') || process.env.WHATSAPP_PHONE_NUMBER_ID;
+      // Check if test mode is enabled
+      const isTestMode = this.configService.get<boolean>('whatsapp.testing.enabled');
+      
+      // Use test credentials if test mode is enabled, otherwise use production
+      const accessToken = isTestMode 
+        ? (this.configService.get<string>('whatsapp.business.testAccessToken') || process.env.TEST_ACCESS_TOKEN)
+        : (this.configService.get<string>('whatsapp.business.accessToken') || process.env.WHATSAPP_ACCESS_TOKEN);
+        
+      const phoneNumberId = isTestMode
+        ? (this.configService.get<string>('whatsapp.business.testPhoneNumberId') || process.env.TEST_PHONE_NUMBER_ID)
+        : (this.configService.get<string>('whatsapp.business.phoneNumberId') || process.env.WHATSAPP_PHONE_NUMBER_ID);
+
+      this.logger.log(`WhatsApp mode: ${isTestMode ? 'TEST' : 'PRODUCTION'}`);
+      this.logger.log(`Using phone number ID: ${phoneNumberId}`);
+      this.logger.log(`Access token length: ${accessToken?.length || 0}`);
 
       if (!accessToken) {
         this.logger.warn('WhatsApp access token not configured');
@@ -99,8 +112,19 @@ export class WhatsAppService {
 
   async testConnection(): Promise<{ status: string; error?: string }> {
     try {
-      const accessToken = this.configService.get<string>('whatsapp.accessToken') || process.env.WHATSAPP_ACCESS_TOKEN;
-      const phoneNumberId = this.configService.get<string>('whatsapp.phoneNumberId') || process.env.WHATSAPP_PHONE_NUMBER_ID;
+      // Check if test mode is enabled
+      const isTestMode = this.configService.get<boolean>('whatsapp.testing.enabled');
+      
+      // Use test credentials if test mode is enabled, otherwise use production
+      const accessToken = isTestMode 
+        ? (this.configService.get<string>('whatsapp.business.testAccessToken') || process.env.TEST_ACCESS_TOKEN)
+        : (this.configService.get<string>('whatsapp.business.accessToken') || process.env.WHATSAPP_ACCESS_TOKEN);
+        
+      const phoneNumberId = isTestMode
+        ? (this.configService.get<string>('whatsapp.business.testPhoneNumberId') || process.env.TEST_PHONE_NUMBER_ID)
+        : (this.configService.get<string>('whatsapp.business.phoneNumberId') || process.env.WHATSAPP_PHONE_NUMBER_ID);
+
+      this.logger.log(`Testing WhatsApp connection in ${isTestMode ? 'TEST' : 'PRODUCTION'} mode`);
 
       if (!accessToken || !phoneNumberId) {
         return {
