@@ -6,9 +6,9 @@
 
 **🚀 LIVE STATUS**: Production-ready system deployed on Railway, processing WhatsApp messages with Claude Haiku AI responses in real-time.
 
-**📊 CURRENT PHASE**: Production maintenance and feature enhancement - All core systems operational
+**📊 CURRENT PHASE**: WhatsApp integration debugging and production token configuration
 **🔗 DEPLOYMENT URL**: https://whatsapp-support-automation-production.up.railway.app/
-**📈 STATUS**: 100% Complete - Landing page, authentication, AI integration, and WhatsApp API fully functional
+**📈 STATUS**: 95% Complete - Core systems operational, WhatsApp test mode implemented, pending production token configuration
 **📋 DOCUMENTATION**: Complete with PROGRESS_LOG.md and RESUME_GUIDE.md for agent continuation
 
 ## 🌐 System Endpoints
@@ -27,14 +27,18 @@
 
 #### API Endpoints
 - **Health Check**: https://whatsapp-support-automation-production.up.railway.app/health
+- **API Health**: https://whatsapp-support-automation-production.up.railway.app/api/health
 - **Auth Login**: https://whatsapp-support-automation-production.up.railway.app/api/auth/login
 - **Auth Register**: https://whatsapp-support-automation-production.up.railway.app/api/auth/register
 - **WhatsApp Webhook**: https://whatsapp-support-automation-production.up.railway.app/api/webhooks/whatsapp-business
+- **Webhook Verification**: https://whatsapp-support-automation-production.up.railway.app/api/webhooks/whatsapp-business?hub.mode=subscribe&hub.verify_token=testverifytoken123&hub.challenge=test
 - **Conversations API**: https://whatsapp-support-automation-production.up.railway.app/api/conversations
 - **Debug Endpoints**: 
-  - https://whatsapp-support-automation-production.up.railway.app/db-test
-  - https://whatsapp-support-automation-production.up.railway.app/test-llm
-  - https://whatsapp-support-automation-production.up.railway.app/test-whatsapp
+  - **Database Test**: https://whatsapp-support-automation-production.up.railway.app/api/db-test
+  - **LLM Test**: https://whatsapp-support-automation-production.up.railway.app/api/test-llm
+  - **WhatsApp Test**: https://whatsapp-support-automation-production.up.railway.app/api/test-whatsapp
+  - **Webhook Health**: https://whatsapp-support-automation-production.up.railway.app/api/webhooks/health
+  - **Test Instructions**: https://whatsapp-support-automation-production.up.railway.app/api/test/instructions
 
 ### 💻 Local Development
 **Base URL**: http://localhost:3000
@@ -62,7 +66,10 @@
 ### 📱 WhatsApp Integration
 - **Webhook URL**: `{BASE_URL}/api/webhooks/whatsapp-business`
 - **Verification URL**: `{BASE_URL}/api/webhooks/whatsapp-business`
-- **Verify Token**: `whatsapp_ai_verify`
+- **Verify Token**: `testverifytoken123`
+- **Test Number**: `+15556485637` (Meta test number)
+- **Business Account ID**: `1437200930610622`
+- **Phone Number ID**: `665397593326012` (test mode)
 
 ### Technology Stack ✅ PRODUCTION
 - **Backend**: NestJS + TypeScript + Express.js webhook server ✅ LIVE
