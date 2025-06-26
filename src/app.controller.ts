@@ -107,7 +107,7 @@ export class AppController {
       let userCount: number | string = 0;
       try {
         const countResult = await this.prismaService.$queryRaw`SELECT COUNT(*) as count FROM users`;
-        userCount = (countResult as any)[0]?.count || 0;
+        userCount = Number((countResult as any)[0]?.count) || 0;
       } catch (error) {
         userCount = `Error: ${error.message}`;
       }
