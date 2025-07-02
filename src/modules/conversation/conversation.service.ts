@@ -277,4 +277,54 @@ export class ConversationService {
       data: { lastMessageAt: new Date() },
     });
   }
+
+  async getAnalyticsForPeriod(userId: string, startDate: Date, endDate: Date) {
+    const [conversations, messages, aiMessages] = await Promise.all([
+      this.prisma.conversation.findMany({
+        where: {
+          userId,
+          createdAt: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        include: {
+          _count: {
+            select: { messages: true }
+          }
+        }
+      }),
+      this.prisma.message.count({
+        where: {
+          conversation: { userId },
+          createdAt: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+      }),
+      this.prisma.message.count({
+        where: {
+          conversation: { userId },
+          senderType: 'ai',
+          createdAt: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+      }),
+    ]);
+
+    const totalMessages = conversations.reduce((sum, conv) => sum + conv._count.messages, 0);
+    const activeConversations = conversations.filter(conv => conv.status === 'active').length;
+
+    return {
+      totalConversations: conversations.length,
+      activeConversations,
+      totalMessages: messages,
+      aiMessages,
+      aiResponseRate: messages > 0 ? Math.round((aiMessages / messages) * 100) : 0,
+      avgMessagesPerConversation: conversations.length > 0 ? Math.round(totalMessages / conversations.length) : 0,
+    };
+  }
 }

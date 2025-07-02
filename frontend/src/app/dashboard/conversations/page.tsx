@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRealTimeConversations } from '@/hooks/useRealTimeConversations';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import ConversationFilters from '@/components/conversations/ConversationFilters';
 import { 
   MessageSquare, 
   Users, 
@@ -45,7 +45,10 @@ export default function ConversationsPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'activity'>('newest');
+  const [aiFilter, setAiFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   const {
     conversations,
@@ -64,23 +67,41 @@ export default function ConversationsPage() {
     });
   }, [requestNotificationPermission]);
 
-  const handleSearch = () => {
-    refreshConversations();
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshConversations();
+    setRefreshing(false);
   };
 
   const handleToggleAI = async (conversationId: string) => {
     await toggleAI(conversationId);
   };
 
-  const filteredConversations = conversations.filter(conv => {
-    const matchesSearch = !searchQuery || 
-      conv.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.customerPhone.includes(searchQuery);
-    
-    if (filter === 'active') return conv.status === 'active' && matchesSearch;
-    if (filter === 'archived') return conv.status === 'archived' && matchesSearch;
-    return matchesSearch;
-  });
+  const filteredAndSortedConversations = conversations
+    .filter(conv => {
+      const matchesSearch = !searchQuery || 
+        conv.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        conv.customerPhone.includes(searchQuery);
+      
+      const matchesStatus = filter === 'all' || conv.status === filter;
+      const matchesAI = aiFilter === 'all' || 
+        (aiFilter === 'enabled' && conv.aiEnabled) ||
+        (aiFilter === 'disabled' && !conv.aiEnabled);
+      
+      return matchesSearch && matchesStatus && matchesAI;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'activity':
+          return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+        default:
+          return 0;
+      }
+    });
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -244,46 +265,22 @@ export default function ConversationsPage() {
       </div>
 
       {/* Enhanced Search and Filter */}
-      <Card className="p-6 border-0 shadow-lg bg-white">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="flex-1 flex items-center gap-3">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-              <Input
-                placeholder="Search by name or phone number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="pl-12 h-12 border-gray-200 focus:border-green-500 focus:ring-green-500 rounded-lg"
-              />
-            </div>
-            <Button 
-              onClick={handleSearch} 
-              variant="outline"
-              className="h-12 px-6 border-gray-200 hover:bg-gray-50"
-            >
-              Search
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Filter className="h-5 w-5 text-gray-400" />
-            <select 
-              value={filter} 
-              onChange={(e) => setFilter(e.target.value as 'all' | 'active' | 'archived')}
-              className="h-12 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            >
-              <option value="all">All Conversations</option>
-              <option value="active">Active Only</option>
-              <option value="archived">Archived Only</option>
-            </select>
-          </div>
-        </div>
-      </Card>
+      <ConversationFilters
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filter={filter}
+        onFilterChange={setFilter}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        aiFilter={aiFilter}
+        onAiFilterChange={setAiFilter}
+        onRefresh={handleRefresh}
+        isRefreshing={refreshing}
+      />
 
       {/* Enhanced Conversations List */}
       <div className="space-y-4">
-        {filteredConversations.length === 0 ? (
+        {filteredAndSortedConversations.length === 0 ? (
           <Card className="border-0 shadow-lg">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-6">
@@ -306,7 +303,7 @@ export default function ConversationsPage() {
             </CardContent>
           </Card>
         ) : (
-          filteredConversations.map((conversation) => (
+          filteredAndSortedConversations.map((conversation) => (
             <Card 
               key={conversation.id} 
               className="border-0 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-102 bg-white"

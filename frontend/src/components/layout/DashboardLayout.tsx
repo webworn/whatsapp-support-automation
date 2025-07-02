@@ -29,6 +29,7 @@ interface DashboardLayoutProps {
 const navigation = [
   { name: 'Overview', href: '/dashboard', icon: BarChart3, badge: null },
   { name: 'Conversations', href: '/dashboard/conversations', icon: MessageSquare, badge: '12' },
+  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, badge: 'LIVE' },
   { name: 'Knowledge Base', href: '/dashboard/knowledge', icon: BookOpen, badge: null },
   { name: 'Customers', href: '/dashboard/customers', icon: Users, badge: null },
   { name: 'Testing', href: '/dashboard/testing', icon: TestTube, badge: 'NEW' },

@@ -286,4 +286,119 @@ export class MessageService {
       readRate,
     };
   }
+
+  async getRecentActivity(userId: string, limit: number = 20) {
+    const recentMessages = await this.prisma.message.findMany({
+      where: {
+        conversation: { userId },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        conversation: {
+          select: {
+            id: true,
+            customerName: true,
+            customerPhone: true,
+          },
+        },
+      },
+    });
+
+    return recentMessages.map(msg => ({
+      id: msg.id,
+      content: msg.content.length > 100 ? msg.content.substring(0, 100) + '...' : msg.content,
+      senderType: msg.senderType,
+      timestamp: msg.createdAt,
+      conversation: {
+        id: msg.conversation.id,
+        customerName: msg.conversation.customerName,
+        customerPhone: msg.conversation.customerPhone,
+      },
+    }));
+  }
+
+  async getPerformanceMetrics(userId: string) {
+    const [
+      avgResponseTime,
+      messageStats,
+      aiPerformance,
+      hourlyDistribution,
+    ] = await Promise.all([
+      this.prisma.message.aggregate({
+        where: {
+          conversation: { userId },
+          senderType: 'ai',
+          processingTimeMs: { not: null },
+        },
+        _avg: { processingTimeMs: true },
+        _min: { processingTimeMs: true },
+        _max: { processingTimeMs: true },
+      }),
+      this.prisma.message.groupBy({
+        by: ['senderType'],
+        where: {
+          conversation: { userId },
+        },
+        _count: { id: true },
+      }),
+      this.prisma.message.groupBy({
+        by: ['aiModelUsed'],
+        where: {
+          conversation: { userId },
+          senderType: 'ai',
+          aiModelUsed: { not: null },
+        },
+        _count: { id: true },
+        _avg: { processingTimeMs: true },
+      }),
+      this.getHourlyMessageDistribution(userId),
+    ]);
+
+    return {
+      responseTime: {
+        average: avgResponseTime._avg.processingTimeMs || 0,
+        min: avgResponseTime._min.processingTimeMs || 0,
+        max: avgResponseTime._max.processingTimeMs || 0,
+      },
+      messageDistribution: messageStats.reduce((acc, stat) => {
+        acc[stat.senderType] = stat._count.id;
+        return acc;
+      }, {} as Record<string, number>),
+      aiModels: aiPerformance.map(model => ({
+        model: model.aiModelUsed,
+        usage: model._count.id,
+        avgResponseTime: model._avg.processingTimeMs,
+      })),
+      hourlyDistribution,
+    };
+  }
+
+  private async getHourlyMessageDistribution(userId: string) {
+    const messages = await this.prisma.$queryRaw`
+      SELECT 
+        EXTRACT(HOUR FROM "createdAt") as hour,
+        COUNT(*) as count
+      FROM "Message" m
+      JOIN "Conversation" c ON m."conversationId" = c.id
+      WHERE c."userId" = ${userId}
+        AND m."createdAt" >= NOW() - INTERVAL '7 days'
+      GROUP BY EXTRACT(HOUR FROM "createdAt")
+      ORDER BY hour
+    `;
+
+    // Create array with all 24 hours initialized to 0
+    const hourlyData = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      count: 0,
+    }));
+
+    // Fill in actual data
+    (messages as any[]).forEach(row => {
+      const hour = parseInt(row.hour);
+      hourlyData[hour].count = parseInt(row.count);
+    });
+
+    return hourlyData;
+  }
 }

@@ -223,4 +223,40 @@ export class ConversationController {
       },
     };
   }
+
+  @Get('analytics/real-time')
+  async getRealTimeAnalytics(@CurrentUser() user: User) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [todayStats, yesterdayStats, weekStats, recentActivity] = await Promise.all([
+      this.conversationService.getAnalyticsForPeriod(user.id, todayStart, now),
+      this.conversationService.getAnalyticsForPeriod(user.id, yesterdayStart, todayStart),
+      this.conversationService.getAnalyticsForPeriod(user.id, weekStart, now),
+      this.messageService.getRecentActivity(user.id),
+    ]);
+
+    return {
+      today: todayStats,
+      yesterday: yesterdayStats,
+      week: weekStats,
+      recentActivity,
+      trends: {
+        messagesGrowth: yesterdayStats.totalMessages > 0 
+          ? Math.round(((todayStats.totalMessages - yesterdayStats.totalMessages) / yesterdayStats.totalMessages) * 100)
+          : 0,
+        conversationsGrowth: yesterdayStats.totalConversations > 0
+          ? Math.round(((todayStats.totalConversations - yesterdayStats.totalConversations) / yesterdayStats.totalConversations) * 100)
+          : 0,
+      },
+    };
+  }
+
+  @Get('analytics/performance')
+  async getPerformanceAnalytics(@CurrentUser() user: User) {
+    const performance = await this.messageService.getPerformanceMetrics(user.id);
+    return { performance };
+  }
 }

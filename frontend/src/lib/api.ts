@@ -140,6 +140,12 @@ export const conversationsApi = {
       () => api.get('/api/conversations/analytics/overview'),
       () => mockApi.conversations.getAnalytics()
     ),
+
+  getRealTimeAnalytics: () =>
+    api.get('/api/conversations/analytics/real-time'),
+
+  getPerformanceAnalytics: () =>
+    api.get('/api/conversations/analytics/performance'),
   
   getRecentMessages: (limit?: number) =>
     api.get('/api/conversations/recent/messages', { params: { limit } }),
