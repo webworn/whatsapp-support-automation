@@ -9,7 +9,7 @@ import { existsSync, readFileSync, statSync } from 'fs';
 export class FrontendController {
   private readonly logger = new Logger(FrontendController.name);
   
-  @Get(['dashboard*', 'login', 'register', 'privacy-policy', 'terms-of-service', '', '/'])
+  @Get(['dashboard*', 'login', 'register', 'privacy-policy', 'terms-of-service', 'data-deletion', 'data-deletion-status', '', '/'])
   serveFrontend(@Req() req: Request, @Res() res: Response) {
     try {
       // Determine project root based on whether we're in dev or production
