@@ -91,7 +91,7 @@ export default function TermsOfServicePage() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Contact Information</h2>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-gray-800"><strong>Email:</strong> support@whatsapp-ai-assistant.com</p>
+                <p className="text-gray-800"><strong>Email:</strong> orionarmentp@gmail.com</p>
                 <p className="text-gray-800"><strong>Address:</strong> WhatsApp AI Assistant<br />
                 Legal Department<br />
                 [Your Business Address]</p>
