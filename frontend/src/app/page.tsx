@@ -460,9 +460,70 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Social Proof Section */}
+      {/* Trust & Compliance Section */}
       <section className="bg-gray-50 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Enterprise-Grade B2B Customer Support Automation
+            </h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              Professional SaaS platform helping businesses deliver exceptional customer support through WhatsApp Business API integration
+            </p>
+          </div>
+
+          {/* Business Verification & Compliance */}
+          <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">WhatsApp Business Verified</h3>
+                <p className="text-sm text-gray-600">Official WhatsApp Business API integration with verified business account</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Lock className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Data Protection Compliant</h3>
+                <p className="text-sm text-gray-600">GDPR, CCPA compliant with comprehensive data deletion capabilities</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Settings className="h-8 w-8 text-purple-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Enterprise SaaS Platform</h3>
+                <p className="text-sm text-gray-600">Professional business software for customer support automation</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Business Details Card */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6 mb-8">
+            <div className="text-center">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Verified Business Information</h3>
+              <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Business Name</p>
+                  <p className="font-medium text-gray-900">WhatsApp AI Assistant</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Service Category</p>
+                  <p className="font-medium text-gray-900">Business Software & SaaS</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Primary Service</p>
+                  <p className="font-medium text-gray-900">AI Customer Support Automation</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Target Market</p>
+                  <p className="font-medium text-gray-900">B2B Enterprise & SMB</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-8">
               Join 10,000+ businesses already using WhatsApp AI
