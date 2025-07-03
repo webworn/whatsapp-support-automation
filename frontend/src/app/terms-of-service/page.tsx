@@ -92,9 +92,13 @@ export default function TermsOfServicePage() {
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Contact Information</h2>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-gray-800"><strong>Email:</strong> orionarmentp@gmail.com</p>
+                <p className="text-gray-800"><strong>Email Subject:</strong>T&C</p>
                 <p className="text-gray-800"><strong>Address:</strong> WhatsApp AI Assistant<br />
                 Legal Department<br />
-                [Your Business Address]</p>
+                55a, Tirupati Town, Behind Govindam Tower<br />
+                Kalwar Road, Jhotwara, Jaipur<br />
+                Jaipur, Rajasthan 302012<br />
+                India</p>
               </div>
             </section>
           </div>

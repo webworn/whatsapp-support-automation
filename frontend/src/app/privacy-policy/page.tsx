@@ -214,11 +214,15 @@ export default function PrivacyPolicyPage() {
                 For questions about this Privacy Policy or our data practices, please contact us:
               </p>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-gray-800"><strong>Email:</strong> privacy@whatsapp-ai-assistant.com</p>
+                <p className="text-gray-800"><strong>Email:</strong> orionarmentp@gmail.com</p>
+                <p className="text-gray-800"><strong>Email Subject:</strong> Privacy Policy</p>
                 <p className="text-gray-800"><strong>Address:</strong> Data Protection Officer<br />
                 WhatsApp AI Assistant<br />
                 Privacy Department<br />
-                [Your Business Address]</p>
+                55a, Tirupati Town, Behind Govindam Tower<br />
+                Kalwar Road, Jhotwara, Jaipur<br />
+                Jaipur, Rajasthan 302012<br />
+                India</p>
                 <p className="text-gray-800"><strong>Response Time:</strong> We respond to privacy inquiries within 30 days</p>
               </div>
             </section>
