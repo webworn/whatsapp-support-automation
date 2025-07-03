@@ -17,6 +17,7 @@ import { DashboardModule } from './gateways/dashboard.module';
 import { LlmModule } from './modules/llm/llm.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { TestModule } from './modules/test/test.module';
+import { DataDeletionModule } from './modules/data-deletion/data-deletion.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -69,6 +70,7 @@ import { FrontendController } from './frontend.controller';
     LlmModule,
     WhatsAppModule,
     TestModule,
+    DataDeletionModule,
   ],
   controllers: [FrontendController, AppController],
   providers: [

@@ -766,6 +766,7 @@ export default function HomePage() {
             <div className="flex space-x-6 mt-4 md:mt-0">
               <Link href="/privacy-policy" className="text-gray-400 hover:text-white">Privacy Policy</Link>
               <Link href="/terms-of-service" className="text-gray-400 hover:text-white">Terms of Service</Link>
+              <Link href="/data-deletion" className="text-gray-400 hover:text-white">Data Deletion</Link>
               <a href="#" className="text-gray-400 hover:text-white">GDPR</a>
             </div>
           </div>
