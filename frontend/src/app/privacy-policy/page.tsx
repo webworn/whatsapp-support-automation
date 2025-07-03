@@ -21,11 +21,17 @@ export default function PrivacyPolicyPage() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Introduction</h2>
               <p className="text-gray-700 mb-4">
-                WhatsApp AI Assistant ("we," "our," or "us") operates a customer support automation platform that integrates with WhatsApp Business API. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our WhatsApp Business integration services.
+                WhatsApp AI Assistant ("we," "our," or "us") operates a <strong>Business-to-Business (B2B) Software as a Service (SaaS)</strong> platform that provides professional customer support automation exclusively for verified business entities through official WhatsApp Business API integration. This Privacy Policy explains how we collect, use, disclose, and safeguard information when legitimate businesses use our enterprise customer support automation services.
               </p>
-              <p className="text-gray-700">
-                This policy specifically covers our WhatsApp Business messaging services, automated AI responses, and customer support automation features.
+              <p className="text-gray-700 mb-4">
+                This policy specifically covers our WhatsApp Business API messaging services, AI-powered automated responses, and professional customer support automation features designed for business use only.
               </p>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-blue-900 mb-2">🏢 Business Use Only</h3>
+                <p className="text-blue-800 text-sm">
+                  Our services are exclusively designed for verified businesses and commercial entities. We do not provide services for personal or individual use. All users must maintain active WhatsApp Business accounts in compliance with Meta's Business API terms.
+                </p>
+              </div>
             </section>
 
             <section className="mb-8">
@@ -110,26 +116,47 @@ export default function PrivacyPolicyPage() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. WhatsApp Business API Compliance</h2>
               
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">5.1 Message Consent</h3>
+              <div className="bg-green-50 p-4 rounded-lg mb-6">
+                <h3 className="font-semibold text-green-900 mb-2">✅ Official WhatsApp Business API Integration</h3>
+                <p className="text-green-800 text-sm">
+                  We are an authorized WhatsApp Business API service provider operating in full compliance with Meta's Business Platform policies and WhatsApp Commerce Policy requirements.
+                </p>
+              </div>
+              
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">5.1 Business Message Consent</h3>
               <p className="text-gray-700 mb-4">
-                By sending messages to WhatsApp Business numbers integrated with our service, users consent to:
+                Our platform only processes messages from customers who have initiated contact with verified business accounts. By sending messages to WhatsApp Business numbers integrated with our service, customers consent to:
               </p>
               <ul className="list-disc pl-6 text-gray-700 mb-4">
-                <li>Automated message processing and AI-generated responses</li>
-                <li>Message storage for conversation continuity</li>
-                <li>Analysis of message content for response generation</li>
-                <li>Integration with business customer support systems</li>
+                <li>Professional automated message processing and AI-generated business responses</li>
+                <li>Secure message storage for business conversation continuity and customer service</li>
+                <li>Business-appropriate analysis of message content for accurate response generation</li>
+                <li>Integration with legitimate business customer support and service systems</li>
+                <li>Processing by verified business entities for customer service purposes only</li>
               </ul>
 
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">5.2 Business Messaging</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">5.2 Legitimate Business Messaging</h3>
               <p className="text-gray-700 mb-4">
-                Our service operates under WhatsApp's Business API terms, which allow:
+                Our service operates exclusively under WhatsApp's Business API terms for verified business entities, which authorize:
+              </p>
+              <ul className="list-disc pl-6 text-gray-700 mb-4">
+                <li>Professional automated responses to legitimate customer inquiries</li>
+                <li>Business-initiated conversations with proper customer consent and opt-in</li>
+                <li>Customer support and service communications for existing business relationships</li>
+                <li>Transaction confirmations, appointment notifications, and order updates</li>
+                <li>Business information and FAQ responses within WhatsApp Commerce Policy guidelines</li>
+              </ul>
+              
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">5.3 Prohibited Business Activities</h3>
+              <p className="text-gray-700 mb-4">
+                In compliance with WhatsApp Business policies, our platform strictly prohibits:
               </p>
               <ul className="list-disc pl-6 text-gray-700">
-                <li>Automated responses to customer inquiries</li>
-                <li>Business-initiated conversations with user consent</li>
-                <li>Customer support and service communications</li>
-                <li>Transaction and appointment confirmations</li>
+                <li>Spam, unsolicited marketing, or cold outreach messaging</li>
+                <li>Personal or non-business use of the platform</li>
+                <li>Promotion of prohibited products (adult content, gambling, cryptocurrency)</li>
+                <li>Misleading or fraudulent business communications</li>
+                <li>Any messaging that violates WhatsApp Commerce Policy or Business API terms</li>
               </ul>
             </section>
 
@@ -215,7 +242,7 @@ export default function PrivacyPolicyPage() {
               </p>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-gray-800"><strong>Email:</strong> orionarmentp@gmail.com</p>
-                <p className="text-gray-800"><strong>Email Subject:</strong> Privacy Policy</p>
+                <p className="text-gray-800"><strong>Email Subject:</strong> Privacy Policy Inquiry</p>
                 <p className="text-gray-800"><strong>Address:</strong> Data Protection Officer<br />
                 WhatsApp AI Assistant<br />
                 Privacy Department<br />
@@ -230,25 +257,52 @@ export default function PrivacyPolicyPage() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">12. Regulatory Compliance</h2>
               <p className="text-gray-700 mb-4">
-                This service complies with applicable data protection regulations, including:
+                As a professional B2B SaaS platform, our service maintains comprehensive compliance with applicable business and data protection regulations, including:
               </p>
-              <ul className="list-disc pl-6 text-gray-700">
-                <li><strong>GDPR:</strong> European Union General Data Protection Regulation</li>
-                <li><strong>CCPA:</strong> California Consumer Privacy Act</li>
-                <li><strong>WhatsApp Business Policy:</strong> Meta's WhatsApp Business API terms</li>
-                <li><strong>SOC 2:</strong> Service Organization Control 2 compliance</li>
+              <ul className="list-disc pl-6 text-gray-700 mb-6">
+                <li><strong>GDPR:</strong> European Union General Data Protection Regulation (full compliance)</li>
+                <li><strong>CCPA:</strong> California Consumer Privacy Act (comprehensive data rights)</li>
+                <li><strong>WhatsApp Business API Policy:</strong> Meta's official Business Platform terms and Commerce Policy</li>
+                <li><strong>SOC 2 Type II Ready:</strong> Security and availability controls framework</li>
+                <li><strong>ISO 27001 Ready:</strong> Information security management standards</li>
+                <li><strong>Business Registration:</strong> Verified business entity with proper licensing</li>
               </ul>
+              
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-2">📋 Business Verification Requirements</h3>
+                <p className="text-gray-700 text-sm mb-2">
+                  All platform users must maintain:
+                </p>
+                <ul className="text-gray-700 text-sm space-y-1">
+                  <li>• Valid business registration and licensing</li>
+                  <li>• Verified WhatsApp Business account in good standing</li>
+                  <li>• Compliance with local business regulations</li>
+                  <li>• Adherence to professional customer service standards</li>
+                </ul>
+              </div>
             </section>
 
-            <div className="mt-12 p-6 bg-blue-50 rounded-lg">
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">Data Subject Rights</h3>
-              <p className="text-blue-800 mb-3">
-                If you are located in the EU, UK, or California, you have additional rights regarding your personal data. 
-                Contact us using the information above to exercise these rights.
-              </p>
-              <p className="text-sm text-blue-700">
-                This privacy policy is designed to comply with WhatsApp Business API requirements and applicable data protection laws.
-              </p>
+            <div className="mt-12 space-y-4">
+              <div className="p-6 bg-blue-50 rounded-lg">
+                <h3 className="text-lg font-semibold text-blue-900 mb-2">🛡️ Data Subject Rights</h3>
+                <p className="text-blue-800 mb-3">
+                  If you are located in the EU, UK, or California, you have additional rights regarding your personal data. 
+                  Contact us using the information above to exercise these rights.
+                </p>
+                <p className="text-sm text-blue-700">
+                  This privacy policy is designed to comply with WhatsApp Business API requirements and applicable data protection laws for professional business services.
+                </p>
+              </div>
+              
+              <div className="p-6 bg-green-50 rounded-lg">
+                <h3 className="text-lg font-semibold text-green-900 mb-2">🏢 Business Platform Compliance</h3>
+                <p className="text-green-800 mb-3">
+                  This privacy policy specifically addresses the requirements for B2B SaaS platforms operating with WhatsApp Business API integration. We maintain the highest standards of business data protection and professional service delivery.
+                </p>
+                <p className="text-sm text-green-700">
+                  Our platform is designed exclusively for legitimate business entities and maintains full compliance with Meta's WhatsApp Business Platform policies and Commerce Policy requirements.
+                </p>
+              </div>
             </div>
           </div>
         </div>
