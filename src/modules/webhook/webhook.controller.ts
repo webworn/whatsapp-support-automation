@@ -29,70 +29,8 @@ export class WebhookController {
 
   constructor(private readonly webhookService: WebhookService) {}
 
-  // WhatsApp webhook verification (GET request)
-  @Get('whatsapp-business')
-  @Public()
-  async verifyWebhook(@Query() query: WebhookVerificationDto): Promise<string> {
-    const mode = query['hub.mode'];
-    const token = query['hub.verify_token'];
-    const challenge = query['hub.challenge'];
-
-    this.logger.log(`Webhook verification request: mode=${mode}, token=${token}`);
-    
-    return this.webhookService.verifyWebhook(mode, token, challenge);
-  }
-
-  // WhatsApp webhook for incoming messages (POST request)
-  @Post('whatsapp-business')
-  @Public()
-  @HttpCode(HttpStatus.OK)
-  async handleWhatsAppWebhook(
-    @Req() req: RawBodyRequest<Request>,
-    @Body() webhookData: WhatsAppWebhookDto,
-    @Headers('x-hub-signature-256') signature?: string,
-  ) {
-    const rawPayload = req.rawBody?.toString() || JSON.stringify(webhookData);
-
-    this.logger.log('Received WhatsApp webhook', {
-      object: webhookData.object,
-      entriesCount: webhookData.entry?.length || 0,
-      hasSignature: !!signature,
-    });
-
-    // Validate webhook signature (in production)
-    if (signature) {
-      const isValidSignature = await this.webhookService.validateSignature(rawPayload, signature);
-      if (!isValidSignature) {
-        this.logger.error('Invalid webhook signature');
-        return { status: 'error', message: 'Invalid signature' };
-      }
-    }
-
-    try {
-      // Process the webhook
-      const processedMessages = await this.webhookService.processWebhook(webhookData, rawPayload);
-
-      return {
-        status: 'success',
-        message: 'Webhook processed successfully',
-        processedMessages: processedMessages.length,
-        messages: processedMessages.map(msg => ({
-          id: msg.id,
-          from: msg.from,
-          content: msg.content.substring(0, 100) + (msg.content.length > 100 ? '...' : ''),
-          type: msg.messageType,
-        })),
-      };
-
-    } catch (error) {
-      this.logger.error('Failed to process webhook', error);
-      return {
-        status: 'error',
-        message: 'Failed to process webhook',
-        error: error.message,
-      };
-    }
-  }
+  // Note: Meta WhatsApp Business API webhooks have been removed
+  // Use the new messaging endpoints at /api/messaging/webhook/* instead
 
   // Get webhook logs
   @Get('logs')

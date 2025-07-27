@@ -12,6 +12,7 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 // Feature modules
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
 import { DocumentModule } from './modules/document/document.module';
 import { DashboardModule } from './gateways/dashboard.module';
 import { LlmModule } from './modules/llm/llm.module';
@@ -65,6 +66,7 @@ import { FrontendController } from './frontend.controller';
     // Feature modules
     ConversationModule,
     WebhookModule,
+    MessagingModule,
     DocumentModule,
     DashboardModule,
     LlmModule,
